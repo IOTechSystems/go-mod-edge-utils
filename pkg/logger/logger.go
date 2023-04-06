@@ -6,6 +6,7 @@ package logger
 
 import (
 	"fmt"
+	"io"
 	stdLog "log"
 	"os"
 
@@ -22,7 +23,7 @@ type Logger struct {
 }
 
 // InitLogger creates an instance of Logger
-func InitLogger(owningServiceName string, logLevel string) Logger {
+func InitLogger(owningServiceName string, logLevel string, logWriter io.Writer) Logger {
 	if !isValidLogLevel(logLevel) {
 		logLevel = models.InfoLog
 	}
@@ -33,7 +34,10 @@ func InitLogger(owningServiceName string, logLevel string) Logger {
 		logLevel:          &logLevel,
 	}
 
-	lc.rootLogger = log.NewLogfmtLogger(os.Stdout)
+	if logWriter == nil {
+		logWriter = os.Stdout
+	}
+	lc.rootLogger = log.NewLogfmtLogger(logWriter)
 	lc.rootLogger = log.WithPrefix(
 		lc.rootLogger,
 		"ts",
