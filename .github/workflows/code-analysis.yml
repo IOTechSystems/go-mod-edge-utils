@@ -20,5 +20,5 @@ jobs:
   call-sonar-scan:
     uses: IOTechSystems/github-action-workflow/.github/workflows/reusable-sonarqube-scan.yml@main
     with:
-      PROJECT_NAME: go-mod-gui-utils
+      PROJECT_NAME: go-mod-edge-utils
     secrets: inherit

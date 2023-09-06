@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/IOTechSystems/go-mod-gui-utils/models"
+	"github.com/IOTechSystems/go-mod-edge-utils/models"
 
 	"github.com/stretchr/testify/assert"
 )

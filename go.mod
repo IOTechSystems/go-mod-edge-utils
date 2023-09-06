@@ -1,4 +1,4 @@
-module github.com/IOTechSystems/go-mod-gui-utils
+module github.com/IOTechSystems/go-mod-edge-utils
 
 go 1.20
 

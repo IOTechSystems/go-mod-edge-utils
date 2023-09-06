@@ -1,3 +1,3 @@
-# go-mod-gui-utils
+# go-mod-edge-utils
 
-This module contains the utility packages which can be reused in the GUI Go backend services.
+This module contains the utility packages which can be reused in the Go services.
