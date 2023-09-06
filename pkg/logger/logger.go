@@ -10,7 +10,7 @@ import (
 	stdLog "log"
 	"os"
 
-	"github.com/IOTechSystems/go-mod-gui-utils/models"
+	"github.com/IOTechSystems/go-mod-edge-utils/models"
 
 	"github.com/go-kit/log"
 )
