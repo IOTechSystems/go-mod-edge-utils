@@ -2,15 +2,13 @@
 // Copyright (C) 2023 IOTech Ltd
 //
 
-package logger
+package log
 
 import (
 	"bytes"
 	"fmt"
 	"strings"
 	"testing"
-
-	"github.com/IOTechSystems/go-mod-edge-utils/models"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -20,11 +18,11 @@ func TestIsValidLogLevel(t *testing.T) {
 		level string
 		res   bool
 	}{
-		{models.TraceLog, true},
-		{models.DebugLog, true},
-		{models.InfoLog, true},
-		{models.WarnLog, true},
-		{models.ErrorLog, true},
+		{TraceLog, true},
+		{DebugLog, true},
+		{InfoLog, true},
+		{WarnLog, true},
+		{ErrorLog, true},
 		{"EERROR", false},
 		{"ERRORR", false},
 		{"INF", false},
@@ -42,14 +40,15 @@ func TestIsValidLogLevel(t *testing.T) {
 
 func TestLogNotFormatted(t *testing.T) {
 	buf := &bytes.Buffer{}
-	expectedLogLevel := models.InfoLog
-	lc := InitLogger("testService", expectedLogLevel, buf)
+	expectedLogLevel := InfoLog
+	log := InitLogger("testService", expectedLogLevel, buf)
+	l := log.(logger) // convert to logger struct
 
 	expectedLogMsg := "test info log"
-	lc.log(expectedLogLevel, false, expectedLogMsg)
+	l.log(expectedLogLevel, false, expectedLogMsg)
 
 	result := buf.String()
-	expectedLevel := "level=" + models.InfoLog
+	expectedLevel := "level=" + InfoLog
 	if exists := strings.Contains(result, expectedLevel); !exists {
 		t.Errorf("Expected %s exists in the writer. Got: %s", expectedLevel, result)
 	}
@@ -60,15 +59,16 @@ func TestLogNotFormatted(t *testing.T) {
 
 func TestLogFormatted(t *testing.T) {
 	buf := &bytes.Buffer{}
-	expectedLogLevel := models.TraceLog
-	lc := InitLogger("testService", expectedLogLevel, buf)
+	expectedLogLevel := TraceLog
+	log := InitLogger("testService", expectedLogLevel, buf)
+	l := log.(logger) // convert to logger struct
 
 	expectedLogMsg := "test info log with msg is %s"
 	expectedStrVar := "abc123"
-	lc.log(expectedLogLevel, true, expectedLogMsg, expectedStrVar)
+	l.log(expectedLogLevel, true, expectedLogMsg, expectedStrVar)
 
 	result := buf.String()
-	expectedLevel := "level=" + models.TraceLog
+	expectedLevel := "level=" + TraceLog
 	if exists := strings.Contains(result, expectedLevel); !exists {
 		t.Errorf("Expected %s exists in the writer. Got: %s", expectedLevel, result)
 	}
@@ -78,26 +78,26 @@ func TestLogFormatted(t *testing.T) {
 }
 
 func TestSetLogLevel(t *testing.T) {
-	expectedLogLevel := models.TraceLog
-	lc := InitLogger("testService", expectedLogLevel, nil)
-	assert.Equal(t, expectedLogLevel, lc.LogLevel())
+	expectedLogLevel := TraceLog
+	logger := InitLogger("testService", expectedLogLevel, nil)
+	assert.Equal(t, expectedLogLevel, logger.LogLevel())
 }
 
 func TestLogLevel(t *testing.T) {
-	expectedLogLevel := models.DebugLog
-	lc := InitLogger("testService", expectedLogLevel, nil)
-	assert.Equal(t, expectedLogLevel, lc.LogLevel())
+	expectedLogLevel := DebugLog
+	logger := InitLogger("testService", expectedLogLevel, nil)
+	assert.Equal(t, expectedLogLevel, logger.LogLevel())
 }
 
 func TestInfo(t *testing.T) {
 	buf := &bytes.Buffer{}
-	lc := InitLogger("testService", models.InfoLog, buf)
+	logger := InitLogger("testService", InfoLog, buf)
 
 	expectedLogMsg := "test info log"
-	lc.Info(expectedLogMsg)
+	logger.Info(expectedLogMsg)
 
 	result := buf.String()
-	expectedLevel := "level=" + models.InfoLog
+	expectedLevel := "level=" + InfoLog
 	if exists := strings.Contains(result, expectedLevel); !exists {
 		t.Errorf("Expected %s exists in the writer. Got: %s", expectedLevel, result)
 	}
@@ -108,13 +108,13 @@ func TestInfo(t *testing.T) {
 
 func TestTrace(t *testing.T) {
 	buf := &bytes.Buffer{}
-	lc := InitLogger("testService", models.TraceLog, buf)
+	logger := InitLogger("testService", TraceLog, buf)
 
 	expectedLogMsg := "test trace log"
-	lc.Trace(expectedLogMsg)
+	logger.Trace(expectedLogMsg)
 
 	result := buf.String()
-	expectedLevel := "level=" + models.TraceLog
+	expectedLevel := "level=" + TraceLog
 	if exists := strings.Contains(result, expectedLevel); !exists {
 		t.Errorf("Expected %s exists in the writer. Got: %s", expectedLevel, result)
 	}
@@ -125,13 +125,13 @@ func TestTrace(t *testing.T) {
 
 func TestDebug(t *testing.T) {
 	buf := &bytes.Buffer{}
-	lc := InitLogger("testService", models.DebugLog, buf)
+	logger := InitLogger("testService", DebugLog, buf)
 
 	expectedLogMsg := "test debug log"
-	lc.Debug(expectedLogMsg)
+	logger.Debug(expectedLogMsg)
 
 	result := buf.String()
-	expectedLevel := "level=" + models.DebugLog
+	expectedLevel := "level=" + DebugLog
 	if exists := strings.Contains(result, expectedLevel); !exists {
 		t.Errorf("Expected %s exists in the writer. Got: %s", expectedLevel, result)
 	}
@@ -142,13 +142,13 @@ func TestDebug(t *testing.T) {
 
 func TestWarn(t *testing.T) {
 	buf := &bytes.Buffer{}
-	lc := InitLogger("testService", models.WarnLog, buf)
+	logger := InitLogger("testService", WarnLog, buf)
 
 	expectedLogMsg := "test warn log"
-	lc.Warn(expectedLogMsg)
+	logger.Warn(expectedLogMsg)
 
 	result := buf.String()
-	expectedLevel := "level=" + models.WarnLog
+	expectedLevel := "level=" + WarnLog
 	if exists := strings.Contains(result, expectedLevel); !exists {
 		t.Errorf("Expected %s exists in the writer. Got: %s", expectedLevel, result)
 	}
@@ -159,13 +159,13 @@ func TestWarn(t *testing.T) {
 
 func TestError(t *testing.T) {
 	buf := &bytes.Buffer{}
-	lc := InitLogger("testService", models.ErrorLog, buf)
+	logger := InitLogger("testService", ErrorLog, buf)
 
 	expectedLogMsg := "test error log"
-	lc.Error(expectedLogMsg)
+	logger.Error(expectedLogMsg)
 
 	result := buf.String()
-	expectedLevel := "level=" + models.ErrorLog
+	expectedLevel := "level=" + ErrorLog
 	if exists := strings.Contains(result, expectedLevel); !exists {
 		t.Errorf("Expected %s exists in the writer. Got: %s", expectedLevel, result)
 	}
@@ -176,14 +176,14 @@ func TestError(t *testing.T) {
 
 func TestInfof(t *testing.T) {
 	buf := &bytes.Buffer{}
-	lc := InitLogger("testService", models.InfoLog, buf)
+	logger := InitLogger("testService", InfoLog, buf)
 
 	expectedLogMsg := "test info log with msg is %s"
 	expectedStrVar := "abc123"
-	lc.Infof(expectedLogMsg, expectedStrVar)
+	logger.Infof(expectedLogMsg, expectedStrVar)
 
 	result := buf.String()
-	expectedLevel := "level=" + models.InfoLog
+	expectedLevel := "level=" + InfoLog
 	if exists := strings.Contains(result, expectedLevel); !exists {
 		t.Errorf("Expected %s exists in the writer. Got: %s", expectedLevel, result)
 	}
@@ -194,14 +194,14 @@ func TestInfof(t *testing.T) {
 
 func TestTracef(t *testing.T) {
 	buf := &bytes.Buffer{}
-	lc := InitLogger("testService", models.TraceLog, buf)
+	logger := InitLogger("testService", TraceLog, buf)
 
 	expectedLogMsg := "test trace log with msg is %s"
 	expectedStrVar := "abc123"
-	lc.Tracef(expectedLogMsg, expectedStrVar)
+	logger.Tracef(expectedLogMsg, expectedStrVar)
 
 	result := buf.String()
-	expectedLevel := "level=" + models.TraceLog
+	expectedLevel := "level=" + TraceLog
 	if exists := strings.Contains(result, expectedLevel); !exists {
 		t.Errorf("Expected %s exists in the writer. Got: %s", expectedLevel, result)
 	}
@@ -212,14 +212,14 @@ func TestTracef(t *testing.T) {
 
 func TestDebugf(t *testing.T) {
 	buf := &bytes.Buffer{}
-	lc := InitLogger("testService", models.DebugLog, buf)
+	logger := InitLogger("testService", DebugLog, buf)
 
 	expectedLogMsg := "test debug log with msg is %s"
 	expectedStrVar := "abc123"
-	lc.Debugf(expectedLogMsg, expectedStrVar)
+	logger.Debugf(expectedLogMsg, expectedStrVar)
 
 	result := buf.String()
-	expectedLevel := "level=" + models.DebugLog
+	expectedLevel := "level=" + DebugLog
 	if exists := strings.Contains(result, expectedLevel); !exists {
 		t.Errorf("Expected %s exists in the writer. Got: %s", expectedLevel, result)
 	}
@@ -230,14 +230,14 @@ func TestDebugf(t *testing.T) {
 
 func TestWarnf(t *testing.T) {
 	buf := &bytes.Buffer{}
-	lc := InitLogger("testService", models.WarnLog, buf)
+	logger := InitLogger("testService", WarnLog, buf)
 
 	expectedLogMsg := "test warn log with msg is %s"
 	expectedStrVar := "abc123"
-	lc.Warnf(expectedLogMsg, expectedStrVar)
+	logger.Warnf(expectedLogMsg, expectedStrVar)
 
 	result := buf.String()
-	expectedLevel := "level=" + models.WarnLog
+	expectedLevel := "level=" + WarnLog
 	if exists := strings.Contains(result, expectedLevel); !exists {
 		t.Errorf("Expected %s exists in the writer. Got: %s", expectedLevel, result)
 	}
@@ -248,14 +248,14 @@ func TestWarnf(t *testing.T) {
 
 func TestErrorf(t *testing.T) {
 	buf := &bytes.Buffer{}
-	lc := InitLogger("testService", models.ErrorLog, buf)
+	logger := InitLogger("testService", ErrorLog, buf)
 
 	expectedLogMsg := "test error log with msg is %s"
 	expectedStrVar := "abc123"
-	lc.Errorf(expectedLogMsg, expectedStrVar)
+	logger.Errorf(expectedLogMsg, expectedStrVar)
 
 	result := buf.String()
-	expectedLevel := "level=" + models.ErrorLog
+	expectedLevel := "level=" + ErrorLog
 	if exists := strings.Contains(result, expectedLevel); !exists {
 		t.Errorf("Expected %s exists in the writer. Got: %s", expectedLevel, result)
 	}
