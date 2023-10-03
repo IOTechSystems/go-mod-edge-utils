@@ -16,9 +16,21 @@
 
 package config
 
+import (
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/mqtt5/config"
+)
+
 const (
 	Vault = "vault"
 )
+
+type GeneralConfiguration struct {
+	LogLevel        string
+	Service         ServiceInfo
+	SecretStore     SecretStoreInfo
+	InsecureSecrets InsecureSecrets
+	Mqtt5Config     map[string]config.Mqtt5Config
+}
 
 // ServiceInfo contains configuration settings necessary for the basic operation of any Edge service.
 type ServiceInfo struct {

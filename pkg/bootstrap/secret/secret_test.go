@@ -26,7 +26,6 @@ import (
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/config"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/container"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/environment"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/interfaces"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/startup"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/di"
 	loggerMocks "github.com/IOTechSystems/go-mod-edge-utils/pkg/log/mocks"
@@ -67,13 +66,13 @@ func TestNewSecretProvider(t *testing.T) {
 				},
 			})
 
-			var configuration interfaces.Configuration
+			var configuration config.GeneralConfiguration
 
 			if tc.Secure == "true" {
 				mockLogger.On("Error", mock.AnythingOfType("string")).Return().Once()
 			} else {
-				configuration = TestConfig{
-					map[string]config.InsecureSecretsInfo{
+				configuration = config.GeneralConfiguration{
+					InsecureSecrets: map[string]config.InsecureSecretsInfo{
 						"DB": {
 							SecretName: expectedSecretName,
 							SecretData: expectedSecrets,
@@ -84,7 +83,7 @@ func TestNewSecretProvider(t *testing.T) {
 
 			envVars := environment.NewVariables(mockLogger)
 
-			actual, err := NewSecretProvider(configuration, envVars, context.Background(), timer, dic, "testServiceKey")
+			actual, err := NewSecretProvider(&configuration, envVars, context.Background(), timer, dic, "testServiceKey")
 			if tc.Secure == "true" {
 				require.Nil(t, actual)
 			} else {
@@ -103,20 +102,4 @@ func TestNewSecretProvider(t *testing.T) {
 			}
 		})
 	}
-}
-
-type TestConfig struct {
-	InsecureSecrets config.InsecureSecrets
-}
-
-func (t TestConfig) GetBootstrap() config.BootstrapConfiguration {
-	return config.BootstrapConfiguration{}
-}
-
-func (t TestConfig) GetLogLevel() string {
-	panic("implement me")
-}
-
-func (t TestConfig) GetInsecureSecrets() config.InsecureSecrets {
-	return t.InsecureSecrets
 }

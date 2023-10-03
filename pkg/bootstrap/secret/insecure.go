@@ -23,7 +23,7 @@ import (
 
 	gometrics "github.com/rcrowley/go-metrics"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/interfaces"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/config"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/di"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
 )
@@ -31,7 +31,7 @@ import (
 // InsecureProvider implements the SecretProvider interface for insecure secrets
 type InsecureProvider struct {
 	logger                    log.Logger
-	configuration             interfaces.Configuration
+	configuration             *config.InsecureSecrets
 	lastUpdated               time.Time
 	registeredSecretCallbacks map[string]func(secretName string)
 	securitySecretsRequested  gometrics.Counter
@@ -40,9 +40,9 @@ type InsecureProvider struct {
 }
 
 // NewInsecureProvider creates, initializes Provider for insecure secrets.
-func NewInsecureProvider(config interfaces.Configuration, logger log.Logger, dic *di.Container) *InsecureProvider {
+func NewInsecureProvider(config *config.GeneralConfiguration, logger log.Logger, dic *di.Container) *InsecureProvider {
 	return &InsecureProvider{
-		configuration:             config,
+		configuration:             &config.InsecureSecrets,
 		logger:                    logger,
 		lastUpdated:               time.Now(),
 		registeredSecretCallbacks: make(map[string]func(secretName string)),
@@ -63,7 +63,7 @@ func (p *InsecureProvider) GetSecret(secretName string, keys ...string) (map[str
 	secretNameExists := false
 	var missingKeys []string
 
-	insecureSecrets := p.configuration.GetInsecureSecrets()
+	insecureSecrets := *p.configuration
 	if insecureSecrets == nil {
 		err := fmt.Errorf("InsecureSecrets missing from configuration")
 		return nil, err
@@ -128,7 +128,7 @@ func (p *InsecureProvider) GetAccessToken(_ string, _ string) (string, error) {
 
 // HasSecret returns true if the service's SecretStore contains a secret at the specified secretName.
 func (p *InsecureProvider) HasSecret(secretName string) (bool, error) {
-	insecureSecrets := p.configuration.GetInsecureSecrets()
+	insecureSecrets := *p.configuration
 	if insecureSecrets == nil {
 		err := fmt.Errorf("InsecureSecret missing from configuration")
 		return false, err
@@ -147,7 +147,7 @@ func (p *InsecureProvider) HasSecret(secretName string) (bool, error) {
 func (p *InsecureProvider) ListSecretNames() ([]string, error) {
 	var results []string
 
-	insecureSecrets := p.configuration.GetInsecureSecrets()
+	insecureSecrets := *p.configuration
 	if insecureSecrets == nil {
 		err := fmt.Errorf("InsecureSecrets missing from configuration")
 		return nil, err
