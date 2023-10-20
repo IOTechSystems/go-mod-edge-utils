@@ -50,9 +50,9 @@ func (h StartMessage) BootstrapHandler(
 	logger.Info("Service dependencies resolved...")
 	logger.Infof("Starting %s %s ", h.serviceKey, h.version)
 
-	bootstrapConfig := container.ConfigurationFrom(dic.Get).GetBootstrap()
-	if len(bootstrapConfig.Service.StartupMsg) > 0 {
-		logger.Info(bootstrapConfig.Service.StartupMsg)
+	startupMsg := container.ConfigurationFrom(dic.Get).Service.StartupMsg
+	if len(startupMsg) > 0 {
+		logger.Info(startupMsg)
 	}
 
 	logger.Info("Service started in: " + startupTimer.SinceAsString())

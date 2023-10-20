@@ -16,19 +16,14 @@
 package container
 
 import (
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/interfaces"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/config"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/di"
 )
 
 // ConfigurationInterfaceName contains the name of the interfaces.Configuration implementation in the DIC.
-var ConfigurationInterfaceName = di.TypeInstanceToName((*interfaces.Configuration)(nil))
+var ConfigurationStructName = di.TypeInstanceToName(config.GeneralConfiguration{})
 
 // ConfigurationFrom helper function queries the DIC and returns the interfaces.Configuration implementation.
-func ConfigurationFrom(get di.Get) interfaces.Configuration {
-	configuration, ok := get(ConfigurationInterfaceName).(interfaces.Configuration)
-	if !ok {
-		return nil
-	}
-
-	return configuration
+func ConfigurationFrom(get di.Get) *config.GeneralConfiguration {
+	return get(ConfigurationStructName).(*config.GeneralConfiguration)
 }

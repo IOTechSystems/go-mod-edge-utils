@@ -19,6 +19,7 @@ package secret
 import (
 	"context"
 
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/config"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/container"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/environment"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/interfaces"
@@ -34,7 +35,7 @@ const (
 
 // NewSecretProvider creates a new fully initialized the Secret Provider.
 func NewSecretProvider(
-	configuration interfaces.Configuration,
+	configuration *config.GeneralConfiguration,
 	envVars *environment.Variables,
 	ctx context.Context,
 	startupTimer startup.Timer,
