@@ -15,13 +15,52 @@
 
 package secret
 
-import "os"
+import (
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/interfaces"
+	"os"
+)
 
 const (
 	EnvSecretStore = "EDGE_SECURITY_SECRET_STORE"
 	// WildcardName is a special secret name that can be used to register a secret callback for any secret.
 	WildcardName = "*"
+
+	AuthModeNone             = "none"
+	AuthModeUsernamePassword = "usernamepassword"
+	AuthModeCert             = "clientcert"
+	AuthModeCA               = "cacert"
+
+	SecretUsernameKey = "username"
+	SecretPasswordKey = "password"
+	SecretClientKey   = "clientkey"
+	SecretClientCert  = AuthModeCert
+	SecretCACert      = AuthModeCA
 )
+
+type SecretData struct {
+	Username     string
+	Password     string
+	KeyPemBlock  string
+	CertPemBlock string
+	CaPemBlock   string
+}
+
+func GetSecretData(secretName string, provider interfaces.SecretProvider) (SecretData, error) {
+	result := SecretData{}
+
+	secrets, err := provider.GetSecret(secretName)
+	if err != nil {
+		return result, err
+	}
+
+	result.Username = secrets[SecretUsernameKey]
+	result.Password = secrets[SecretPasswordKey]
+	result.KeyPemBlock = secrets[SecretClientKey]
+	result.CertPemBlock = secrets[SecretClientCert]
+	result.CaPemBlock = secrets[SecretCACert]
+
+	return result, nil
+}
 
 // IsSecurityEnabled determines if security has been enabled.
 func IsSecurityEnabled() bool {
