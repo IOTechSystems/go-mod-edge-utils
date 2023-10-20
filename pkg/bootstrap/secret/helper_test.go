@@ -16,17 +16,17 @@ var dic *di.Container
 
 func TestGetSecretData(t *testing.T) {
 	testUsername := "TEST_USER"
-	testPassword := "TEST_PASS"
+	testClientKey := "TEST_KEY"
 
 	// setup mock secret client
 	secrets := map[string]string{
 		SecretUsernameKey: testUsername,
-		SecretPasswordKey: testPassword,
+		SecretClientKey:   testClientKey,
 	}
 
 	expectedSecretData := SecretData{
-		Username: testUsername,
-		Password: testPassword,
+		Username:    testUsername,
+		KeyPemBlock: testClientKey,
 	}
 
 	mockSecretProvider := &mocks.SecretProvider{}
