@@ -1,3 +1,7 @@
+// Copyright (C) 2023 IOTech Ltd
+//
+// SPDX-License-Identifier: Apache-2.0
+
 #!/usr/bin/env groovy
 @Library("devops-libraries") _
 
