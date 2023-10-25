@@ -6,15 +6,13 @@ package bootstrap
 
 import (
 	"context"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/mqtt5"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/mqtt5/config"
-	"strings"
 	"sync"
 
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/container"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/startup"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/di"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/mqtt5"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/mqtt5/config"
 )
 
 func Mqtt5BootstrapHandler(ctx context.Context, wg *sync.WaitGroup, startupTimer startup.Timer, dic *di.Container) bool {
@@ -37,18 +35,16 @@ func Mqtt5BootstrapHandler(ctx context.Context, wg *sync.WaitGroup, startupTimer
 	}
 
 	for configName, mqttConfig := range mqtt5ConfigMap {
-		if !validateMqtt5Config(configName, mqttConfig, logger) {
+		if err := config.Validate(mqttConfig); err != nil {
+			logger.Errorf("Mqtt5Config %s validation error: %s", configName, err)
 			return false
 		}
 
 		client := mqtt5.NewMqtt5Client(mqttConfig)
 
-		if len(mqttConfig.AuthMode) > 0 &&
-			!strings.EqualFold(strings.TrimSpace(mqttConfig.AuthMode), mqtt5.AuthModeNone) {
-			if err := client.SetAuthData(secretProvider, logger); err != nil {
-				logger.Errorf("Setting MQTT 5 auth data failed: %v", err)
-				return false
-			}
+		if err := client.SetAuthData(secretProvider, logger); err != nil {
+			logger.Errorf("Setting MQTT 5 auth data failed: %v", err)
+			return false
 		}
 
 		clientMap.mqtt5Clients[configName] = client
@@ -90,28 +86,4 @@ func Mqtt5BootstrapHandler(ctx context.Context, wg *sync.WaitGroup, startupTimer
 
 	logger.Error("Connecting to MQTT 5 clients time out")
 	return false
-}
-
-func validateMqtt5Config(configName string, config config.Mqtt5Config, logger log.Logger) bool {
-	var missingConfig []string
-	if config.Host == "" {
-		missingConfig = append(missingConfig, "Host")
-	}
-	if config.Port == 0 {
-		missingConfig = append(missingConfig, "Port")
-	}
-	if config.Protocol == "" {
-		missingConfig = append(missingConfig, "Protocol")
-	}
-	if config.AuthMode == "" {
-		missingConfig = append(missingConfig, "AuthMode")
-	}
-	if config.SecretName == "" {
-		missingConfig = append(missingConfig, "SecretName")
-	}
-	if missingConfig != nil {
-		logger.Errorf("Missing required config: %v in Mqtt5Config %s", missingConfig, configName)
-		return false
-	}
-	return true
 }
