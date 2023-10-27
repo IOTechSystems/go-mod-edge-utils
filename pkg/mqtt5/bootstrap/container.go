@@ -6,6 +6,7 @@ package bootstrap
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -15,7 +16,7 @@ import (
 )
 
 type Mqtt5ClientMap struct {
-	mqtt5Clients map[string]mqtt5.Mqtt5Client
+	mqtt5Clients map[string]*mqtt5.Mqtt5Client
 	mutex        *sync.RWMutex
 }
 
@@ -38,34 +39,34 @@ func (mc *Mqtt5ClientMap) Get(brokerName string) (mqtt5.Mqtt5Client, error) {
 
 	for name, client := range mc.mqtt5Clients {
 		if name == brokerName {
-			return client, nil
+			return *client, nil
 		}
 	}
 
 	return mqtt5.Mqtt5Client{}, fmt.Errorf("%s Mqtt5Client not found", brokerName)
 }
 
-func (mc *Mqtt5ClientMap) ConnectAll(ctx context.Context, logger log.Logger) bool {
+func (mc *Mqtt5ClientMap) ConnectAll(ctx context.Context, logger log.Logger) error {
+	var errs error
 	for name, client := range mc.mqtt5Clients {
 		if err := client.Connect(ctx, logger); err != nil {
 			logger.Warnf("Failed to connect mqtt5Client %s: %v", name, err)
-			return false
+			errs = errors.Join(errs, err)
 		}
 	}
-	logger.Info("All mqtt5Clients are connected")
 
-	return true
+	return errs
 }
 
 func (mc *Mqtt5ClientMap) DisconnectAll(logger log.Logger) error {
+	var errs error
 	for name, client := range mc.mqtt5Clients {
 		if err := client.Disconnect(); err != nil {
 			logger.Errorf("Failed to disconnect mqtt5Client %s: %v", name, err)
-			return err
+			errs = errors.Join(errs, err)
 		}
+		logger.Infof("Disconnected mqtt5Client %s", name)
 	}
 
-	logger.Info("All mqtt5Clients are disconnected")
-
-	return nil
+	return errs
 }

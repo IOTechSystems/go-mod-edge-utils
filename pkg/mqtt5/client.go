@@ -12,12 +12,19 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
+
+	"github.com/eclipse/paho.golang/paho"
 
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/interfaces"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/secret"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/mqtt5/config"
-	"github.com/eclipse/paho.golang/paho"
+)
+
+const (
+	DefaultDialTimeOut = 30
 )
 
 type Mqtt5Client struct {
@@ -26,6 +33,7 @@ type Mqtt5Client struct {
 	mqtt5Client   *paho.Client
 	connect       *paho.Connect
 	isConnected   bool
+	mutex         *sync.RWMutex
 }
 
 func NewMqtt5Client(config config.Mqtt5Config) Mqtt5Client {
@@ -41,6 +49,7 @@ func NewMqtt5Client(config config.Mqtt5Config) Mqtt5Client {
 		},
 	}
 }
+
 func (c *Mqtt5Client) SetAuthData(secretProvider interfaces.SecretProvider, logger log.Logger) error {
 	authMode := strings.ToLower(c.configuration.AuthMode)
 	if len(authMode) == 0 || authMode == secret.AuthModeNone {
@@ -98,16 +107,24 @@ func (c *Mqtt5Client) SetAuthData(secretProvider interfaces.SecretProvider, logg
 	return nil
 }
 
+func (c *Mqtt5Client) SetMutex(mutex *sync.RWMutex) {
+	c.mutex = mutex
+}
+
 func (c *Mqtt5Client) Connect(ctx context.Context, logger log.Logger) error {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+
 	// Avoid reconnecting if already connected.
+	server := c.configuration.Host + ":" + strconv.Itoa(c.configuration.Port)
 	if c.isConnected {
+		logger.Debugf("Already connected to %s://%s", c.configuration.Protocol, server)
 		return nil
 	}
 
-	server := c.configuration.Host + ":" + strconv.Itoa(c.configuration.Port)
-	conn, err := net.Dial(c.configuration.Protocol, server)
+	conn, err := net.DialTimeout(c.configuration.Protocol, server, time.Second*time.Duration(DefaultDialTimeOut))
 	if err != nil {
-		return err
+		return fmt.Errorf("dial %s with timeout %vs failed: %w", server, DefaultDialTimeOut, err)
 	}
 	c.mqtt5Client.Conn = conn
 	ca, err := c.mqtt5Client.Connect(ctx, c.connect)
@@ -125,8 +142,20 @@ func (c *Mqtt5Client) Connect(ctx context.Context, logger log.Logger) error {
 }
 
 func (c *Mqtt5Client) Disconnect() error {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+
+	if !c.isConnected {
+		return nil
+	}
+
 	d := &paho.Disconnect{ReasonCode: 0}
 	err := c.mqtt5Client.Disconnect(d)
+	if err != nil {
+		return err
+	}
+
 	c.isConnected = false
-	return err
+
+	return nil
 }
