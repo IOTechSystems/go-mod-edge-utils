@@ -17,35 +17,51 @@ import (
 
 type Mqtt5ClientMap struct {
 	mqtt5Clients map[string]*mqtt5.Mqtt5Client
-	mutex        *sync.RWMutex
+	mutex        sync.RWMutex
 }
 
 // Mqtt5ClientMapName contains the name of the Mqtt5ClientMap struct in the DIC.
 var Mqtt5ClientMapName = di.TypeInstanceToName((*Mqtt5ClientMap)(nil))
 
-// Mqtt5ClientMapFrom helper function queries the DIC and returns the Dev and Remotes mode flags.
-func Mqtt5ClientMapFrom(get di.Get) Mqtt5ClientMap {
+// Mqtt5ClientMapFrom helper function queries the DIC and returns Mqtt5ClientMap implementation.
+func Mqtt5ClientMapFrom(get di.Get) *Mqtt5ClientMap {
 	mqtt5Config, ok := get(Mqtt5ClientMapName).(*Mqtt5ClientMap)
 	if !ok {
-		return Mqtt5ClientMap{}
+		return nil
 	}
 
-	return *mqtt5Config
+	return mqtt5Config
 }
 
-func (mc *Mqtt5ClientMap) Get(brokerName string) (mqtt5.Mqtt5Client, error) {
+// NewMqtt5ClientMap create, initializes and returns new instance of Mqtt5ClientMap
+func NewMqtt5ClientMap() Mqtt5ClientMap {
+	return Mqtt5ClientMap{
+		mqtt5Clients: make(map[string]*mqtt5.Mqtt5Client),
+	}
+}
+
+// Get the specific client from Mqtt5ClientMap
+func (mc *Mqtt5ClientMap) Get(brokerName string) (*mqtt5.Mqtt5Client, error) {
 	mc.mutex.RLock()
 	defer mc.mutex.RUnlock()
 
-	for name, client := range mc.mqtt5Clients {
-		if name == brokerName {
-			return *client, nil
-		}
+	client, ok := mc.mqtt5Clients[brokerName]
+	if !ok {
+		return nil, fmt.Errorf("%s Mqtt5Client not found", brokerName)
 	}
 
-	return mqtt5.Mqtt5Client{}, fmt.Errorf("%s Mqtt5Client not found", brokerName)
+	return client, nil
 }
 
+// Put new or updated client into Mqtt5ClientMap
+func (mc *Mqtt5ClientMap) Put(brokerName string, c *mqtt5.Mqtt5Client) {
+	mc.mutex.Lock()
+	defer mc.mutex.Unlock()
+
+	mc.mqtt5Clients[brokerName] = c
+}
+
+// ConnectAll establishes all the connections to a MQTT server.
 func (mc *Mqtt5ClientMap) ConnectAll(ctx context.Context, logger log.Logger) error {
 	var errs error
 	for name, client := range mc.mqtt5Clients {
@@ -58,6 +74,7 @@ func (mc *Mqtt5ClientMap) ConnectAll(ctx context.Context, logger log.Logger) err
 	return errs
 }
 
+// DisconnectAll closes all the connections to the connected MQTT server.
 func (mc *Mqtt5ClientMap) DisconnectAll(logger log.Logger) error {
 	var errs error
 	for name, client := range mc.mqtt5Clients {

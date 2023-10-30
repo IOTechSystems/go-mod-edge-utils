@@ -33,9 +33,10 @@ type Mqtt5Client struct {
 	mqtt5Client   *paho.Client
 	connect       *paho.Connect
 	isConnected   bool
-	mutex         *sync.RWMutex
+	mutex         sync.Mutex
 }
 
+// NewMqtt5Client create, initializes and returns new instance of Mqtt5Client
 func NewMqtt5Client(config config.Mqtt5Config) Mqtt5Client {
 	return Mqtt5Client{
 		configuration: config,
@@ -50,6 +51,7 @@ func NewMqtt5Client(config config.Mqtt5Config) Mqtt5Client {
 	}
 }
 
+// SetAuthData retrieves and sets up auth data from secret provider according to AuthMode and SecretName
 func (c *Mqtt5Client) SetAuthData(secretProvider interfaces.SecretProvider, logger log.Logger) error {
 	authMode := strings.ToLower(c.configuration.AuthMode)
 	if len(authMode) == 0 || authMode == secret.AuthModeNone {
@@ -107,19 +109,21 @@ func (c *Mqtt5Client) SetAuthData(secretProvider interfaces.SecretProvider, logg
 	return nil
 }
 
-func (c *Mqtt5Client) SetMutex(mutex *sync.RWMutex) {
-	c.mutex = mutex
-}
-
+// Connect establishes a connection to a MQTT server.
 func (c *Mqtt5Client) Connect(ctx context.Context, logger log.Logger) error {
-	c.mutex.RLock()
-	defer c.mutex.RUnlock()
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 
 	// Avoid reconnecting if already connected.
 	server := c.configuration.Host + ":" + strconv.Itoa(c.configuration.Port)
 	if c.isConnected {
 		logger.Debugf("Already connected to %s://%s", c.configuration.Protocol, server)
 		return nil
+	}
+
+	// IPv6 address must be enclosed in square brackets
+	if ip := net.ParseIP(c.configuration.Host); ip != nil && ip.To4() == nil {
+		server = strings.Replace(server, c.configuration.Host, "["+c.configuration.Host+"]", 1)
 	}
 
 	conn, err := net.DialTimeout(c.configuration.Protocol, server, time.Second*time.Duration(DefaultDialTimeOut))
@@ -141,9 +145,10 @@ func (c *Mqtt5Client) Connect(ctx context.Context, logger log.Logger) error {
 	return nil
 }
 
+// Disconnect closes the connection to the connected MQTT server.
 func (c *Mqtt5Client) Disconnect() error {
-	c.mutex.RLock()
-	defer c.mutex.RUnlock()
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 
 	if !c.isConnected {
 		return nil
