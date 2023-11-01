@@ -5,9 +5,10 @@
 package config
 
 type Mqtt5Config struct {
-	Host       string
-	Port       int
-	Protocol   string
+	// hostname_rfc1123 refers to https://github.com/go-playground/validator/blob/94a637ab9fbbb0bc0fe8a278f0352d0b14e2c365/regexes.go#L52C22-L52C22
+	Host       string `validate:"required,ip|hostname_rfc1123"`
+	Port       int    `validate:"required"`
+	Protocol   string `validate:"required"`
 	AuthMode   string
 	SecretName string
 	ClientID   string // Client ID to use when connecting to server

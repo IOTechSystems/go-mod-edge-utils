@@ -6,17 +6,17 @@ package bootstrap
 
 import (
 	"context"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/mqtt5"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/mqtt5/config"
-	"strings"
 	"sync"
 
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/container"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/startup"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/di"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/mqtt5"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/validator"
 )
 
+// Mqtt5BootstrapHandler fulfills the BootstrapHandler contract. It creates and initializes the MQTT 5 clients
+// and adds the MQTT 5 client map to the DIC
 func Mqtt5BootstrapHandler(ctx context.Context, wg *sync.WaitGroup, startupTimer startup.Timer, dic *di.Container) bool {
 	logger := container.LoggerFrom(dic.Get)
 	secretProvider := container.SecretProviderFrom(dic.Get)
@@ -30,28 +30,21 @@ func Mqtt5BootstrapHandler(ctx context.Context, wg *sync.WaitGroup, startupTimer
 	}
 
 	// create client and connect
-	var clientMap Mqtt5ClientMap
-	if clientMap.mqtt5Clients == nil {
-		clientMap.mqtt5Clients = map[string]mqtt5.Mqtt5Client{}
-		clientMap.mutex = &sync.RWMutex{}
-	}
-
+	clientMap := NewMqtt5ClientMap()
 	for configName, mqttConfig := range mqtt5ConfigMap {
-		if !validateMqtt5Config(configName, mqttConfig, logger) {
+		if err := validator.Validate(mqttConfig); err != nil {
+			logger.Errorf("Mqtt5Config %s validation error: %s", configName, err)
 			return false
 		}
 
 		client := mqtt5.NewMqtt5Client(mqttConfig)
 
-		if len(mqttConfig.AuthMode) > 0 &&
-			!strings.EqualFold(strings.TrimSpace(mqttConfig.AuthMode), mqtt5.AuthModeNone) {
-			if err := client.SetAuthData(secretProvider, logger); err != nil {
-				logger.Errorf("Setting MQTT 5 auth data failed: %v", err)
-				return false
-			}
+		if err := client.SetAuthData(secretProvider, logger); err != nil {
+			logger.Errorf("Setting MQTT 5 auth data failed: %v", err)
+			return false
 		}
 
-		clientMap.mqtt5Clients[configName] = client
+		clientMap.Put(configName, &client)
 
 		logger.Infof(
 			"Created MQTT 5 client %s://%s:%d with Authmode=%s",
@@ -66,10 +59,11 @@ func Mqtt5BootstrapHandler(ctx context.Context, wg *sync.WaitGroup, startupTimer
 		case <-ctx.Done():
 			return false
 		default:
-			if !clientMap.ConnectAll(ctx, logger) {
+			if err := clientMap.ConnectAll(ctx, logger); err != nil {
 				startupTimer.SleepForInterval()
 				continue
 			}
+
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
@@ -89,29 +83,9 @@ func Mqtt5BootstrapHandler(ctx context.Context, wg *sync.WaitGroup, startupTimer
 	}
 
 	logger.Error("Connecting to MQTT 5 clients time out")
+	// Disconnect already connected clients
+	if len(clientMap.mqtt5Clients) > 0 {
+		_ = clientMap.DisconnectAll(logger)
+	}
 	return false
-}
-
-func validateMqtt5Config(configName string, config config.Mqtt5Config, logger log.Logger) bool {
-	var missingConfig []string
-	if config.Host == "" {
-		missingConfig = append(missingConfig, "Host")
-	}
-	if config.Port == 0 {
-		missingConfig = append(missingConfig, "Port")
-	}
-	if config.Protocol == "" {
-		missingConfig = append(missingConfig, "Protocol")
-	}
-	if config.AuthMode == "" {
-		missingConfig = append(missingConfig, "AuthMode")
-	}
-	if config.SecretName == "" {
-		missingConfig = append(missingConfig, "SecretName")
-	}
-	if missingConfig != nil {
-		logger.Errorf("Missing required config: %v in Mqtt5Config %s", missingConfig, configName)
-		return false
-	}
-	return true
 }
