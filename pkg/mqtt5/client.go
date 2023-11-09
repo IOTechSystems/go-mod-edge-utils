@@ -20,7 +20,7 @@ import (
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/interfaces"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/secret"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/mqtt5/config"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/mqtt5/models"
 )
 
 const (
@@ -28,7 +28,9 @@ const (
 )
 
 type Mqtt5Client struct {
-	configuration config.Mqtt5Config
+	logger        log.Logger
+	ctx           context.Context
+	configuration models.Mqtt5Config
 	authData      secret.SecretData
 	mqtt5Client   *paho.Client
 	connect       *paho.Connect
@@ -37,11 +39,14 @@ type Mqtt5Client struct {
 }
 
 // NewMqtt5Client create, initializes and returns new instance of Mqtt5Client
-func NewMqtt5Client(config config.Mqtt5Config) Mqtt5Client {
+func NewMqtt5Client(logger log.Logger, ctx context.Context, config models.Mqtt5Config) Mqtt5Client {
 	return Mqtt5Client{
+		logger:        logger,
+		ctx:           ctx,
 		configuration: config,
 		mqtt5Client: paho.NewClient(paho.ClientConfig{
 			ClientID: config.ClientID,
+			Router:   paho.NewStandardRouter(),
 		}),
 		connect: &paho.Connect{
 			ClientID:   config.ClientID,
@@ -52,7 +57,7 @@ func NewMqtt5Client(config config.Mqtt5Config) Mqtt5Client {
 }
 
 // SetAuthData retrieves and sets up auth data from secret provider according to AuthMode and SecretName
-func (c *Mqtt5Client) SetAuthData(secretProvider interfaces.SecretProvider, logger log.Logger) error {
+func (c *Mqtt5Client) SetAuthData(secretProvider interfaces.SecretProvider) error {
 	authMode := strings.ToLower(c.configuration.AuthMode)
 	if len(authMode) == 0 || authMode == secret.AuthModeNone {
 		return nil
@@ -62,7 +67,7 @@ func (c *Mqtt5Client) SetAuthData(secretProvider interfaces.SecretProvider, logg
 		return errors.New("missing SecretName")
 	}
 
-	logger.Infof("Setting auth data for secure MessageBus with AuthMode='%s' and SecretName='%s",
+	c.logger.Infof("Setting auth data for secure MessageBus with AuthMode='%s' and SecretName='%s",
 		authMode,
 		c.configuration.SecretName)
 
@@ -110,14 +115,14 @@ func (c *Mqtt5Client) SetAuthData(secretProvider interfaces.SecretProvider, logg
 }
 
 // Connect establishes a connection to a MQTT server.
-func (c *Mqtt5Client) Connect(ctx context.Context, logger log.Logger) error {
+func (c *Mqtt5Client) Connect() error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
 	// Avoid reconnecting if already connected.
 	server := c.configuration.Host + ":" + strconv.Itoa(c.configuration.Port)
 	if c.isConnected {
-		logger.Debugf("Already connected to %s://%s", c.configuration.Protocol, server)
+		c.logger.Debugf("Already connected to %s://%s", c.configuration.Protocol, server)
 		return nil
 	}
 
@@ -131,17 +136,17 @@ func (c *Mqtt5Client) Connect(ctx context.Context, logger log.Logger) error {
 		return fmt.Errorf("dial %s with timeout %vs failed: %w", server, DefaultDialTimeOut, err)
 	}
 	c.mqtt5Client.Conn = conn
-	ca, err := c.mqtt5Client.Connect(ctx, c.connect)
+	ca, err := c.mqtt5Client.Connect(c.ctx, c.connect)
+	if ca.ReasonCode != 0 {
+		c.logger.Debugf("Received an MQTT 5 error code: 0x%02x - %s", ca.ReasonCode, ca.Properties.ReasonString)
+	}
 	if err != nil {
-		if ca.ReasonCode != 0 {
-			logger.Errorf("Failed to connect to %s://%s with reason code: %d - %s", c.configuration.Protocol, server, ca.ReasonCode, ca.Properties.ReasonString)
-			return err
-		}
+		c.logger.Errorf("Failed to connect to %s://%s", c.configuration.Protocol, server)
 		return err
 	}
 
 	c.isConnected = true
-	logger.Infof("Connected to %s://%s", c.configuration.Protocol, server)
+	c.logger.Infof("Connected to %s://%s with Client ID: %s", c.configuration.Protocol, server, c.configuration.ClientID)
 	return nil
 }
 
@@ -161,6 +166,85 @@ func (c *Mqtt5Client) Disconnect() error {
 	}
 
 	c.isConnected = false
+	c.logger.Infof("Disconnected to %s://%s:%s with Client ID: %s", c.configuration.Protocol, c.configuration.Host, strconv.Itoa(c.configuration.Port), c.configuration.ClientID)
+	return nil
+}
+
+// Subscribe creates subscriptions for the specified topics and the message handler.
+func (c *Mqtt5Client) Subscribe(topics []string, handlerType any) error {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	var handler paho.MessageHandler
+	switch v := handlerType.(type) {
+	case chan models.MessageEnvelope:
+		messageChannel := v
+		handler = newDefaultMessageHandler(messageChannel)
+	case paho.MessageHandler:
+		handler = v
+	default:
+		return fmt.Errorf("Unsupported handlerType, only support chan models.MessageEnvelope and paho.MessageHandler")
+	}
+
+	var subscriptions []paho.SubscribeOptions
+	for _, topic := range topics {
+		c.logger.Debugf("Register MQTT5 message handler to topic: %v by handler type: %T", topic, handlerType)
+		c.mqtt5Client.Router.RegisterHandler(topic, handler)
+
+		sub := paho.SubscribeOptions{Topic: topic, QoS: byte(c.configuration.QoS)}
+		subscriptions = append(subscriptions, sub)
+	}
+
+	sa, err := c.mqtt5Client.Subscribe(c.ctx, &paho.Subscribe{
+		Subscriptions: subscriptions,
+	})
+	for _, code := range sa.Reasons {
+		// SUBACK returning reason code == QoS means successful
+		if code != byte(c.configuration.QoS) {
+			c.logger.Debugf("Received an MQTT 5 error code: 0x%02x - %s", code, sa.Properties.ReasonString)
+		}
+	}
+	if err != nil {
+		c.logger.Errorf("At least one subscription failed: %v", err)
+		return err
+	}
+
+	c.logger.Infof("Subscribed to %v", strings.Join(topics, ","))
 
 	return nil
+}
+
+// Unsubscribe to unsubscribe from the specified topics.
+func (c *Mqtt5Client) Unsubscribe(topics []string) error {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	ua, err := c.mqtt5Client.Unsubscribe(c.ctx, &paho.Unsubscribe{Topics: topics})
+	for _, code := range ua.Reasons {
+		if code != 0 {
+			c.logger.Debugf("Received an MQTT 5 error code: 0x%02x - %s", code, ua.Properties.ReasonString)
+		}
+	}
+	if err != nil {
+		c.logger.Errorf("At least one unsubscription failed: %v", err)
+		return err
+	}
+
+	c.logger.Infof("Unsubscribed to %v", strings.Join(topics, ","))
+
+	return nil
+}
+
+func newDefaultMessageHandler(messageChannel chan<- models.MessageEnvelope) paho.MessageHandler {
+	handler := func(m *paho.Publish) {
+		var messageEnvelope models.MessageEnvelope
+		messageEnvelope.Payload = m.Payload
+		messageEnvelope.ReceivedTopic = m.Topic
+		messageEnvelope.ContentType = m.Properties.ContentType
+		if len(m.Properties.CorrelationData) > 0 {
+			messageEnvelope.CorrelationID = string(m.Properties.CorrelationData)
+		}
+		messageChannel <- messageEnvelope
+	}
+	return handler
 }

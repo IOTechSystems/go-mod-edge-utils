@@ -5,7 +5,6 @@
 package bootstrap
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -16,7 +15,7 @@ import (
 )
 
 type Mqtt5ClientMap struct {
-	mqtt5Clients map[string]*mqtt5.Mqtt5Client
+	mqtt5Clients map[string]mqtt5.MessageClient
 	mutex        sync.RWMutex
 }
 
@@ -36,12 +35,12 @@ func Mqtt5ClientMapFrom(get di.Get) *Mqtt5ClientMap {
 // NewMqtt5ClientMap create, initializes and returns new instance of Mqtt5ClientMap
 func NewMqtt5ClientMap() Mqtt5ClientMap {
 	return Mqtt5ClientMap{
-		mqtt5Clients: make(map[string]*mqtt5.Mqtt5Client),
+		mqtt5Clients: make(map[string]mqtt5.MessageClient),
 	}
 }
 
 // Get the specific client from Mqtt5ClientMap
-func (mc *Mqtt5ClientMap) Get(brokerName string) (*mqtt5.Mqtt5Client, error) {
+func (mc *Mqtt5ClientMap) Get(brokerName string) (mqtt5.MessageClient, error) {
 	mc.mutex.RLock()
 	defer mc.mutex.RUnlock()
 
@@ -54,7 +53,7 @@ func (mc *Mqtt5ClientMap) Get(brokerName string) (*mqtt5.Mqtt5Client, error) {
 }
 
 // Put new or updated client into Mqtt5ClientMap
-func (mc *Mqtt5ClientMap) Put(brokerName string, c *mqtt5.Mqtt5Client) {
+func (mc *Mqtt5ClientMap) Put(brokerName string, c mqtt5.MessageClient) {
 	mc.mutex.Lock()
 	defer mc.mutex.Unlock()
 
@@ -62,10 +61,10 @@ func (mc *Mqtt5ClientMap) Put(brokerName string, c *mqtt5.Mqtt5Client) {
 }
 
 // ConnectAll establishes all the connections to a MQTT server.
-func (mc *Mqtt5ClientMap) ConnectAll(ctx context.Context, logger log.Logger) error {
+func (mc *Mqtt5ClientMap) ConnectAll(logger log.Logger) error {
 	var errs error
 	for name, client := range mc.mqtt5Clients {
-		if err := client.Connect(ctx, logger); err != nil {
+		if err := client.Connect(); err != nil {
 			logger.Warnf("Failed to connect mqtt5Client %s: %v", name, err)
 			errs = errors.Join(errs, err)
 		}
