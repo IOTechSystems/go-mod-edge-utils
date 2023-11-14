@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package config
+package models
 
 type Mqtt5Config struct {
 	// hostname_rfc1123 refers to https://github.com/go-playground/validator/blob/94a637ab9fbbb0bc0fe8a278f0352d0b14e2c365/regexes.go#L52C22-L52C22
@@ -15,4 +15,5 @@ type Mqtt5Config struct {
 	QoS        int    // QOS to use when publishing
 	KeepAlive  uint16 // seconds between keepalive packets
 	CleanStart bool
+	Topics     map[string]string
 }

@@ -37,9 +37,9 @@ func Mqtt5BootstrapHandler(ctx context.Context, wg *sync.WaitGroup, startupTimer
 			return false
 		}
 
-		client := mqtt5.NewMqtt5Client(mqttConfig)
+		client := mqtt5.NewMqtt5Client(logger, ctx, mqttConfig)
 
-		if err := client.SetAuthData(secretProvider, logger); err != nil {
+		if err := client.SetAuthData(secretProvider); err != nil {
 			logger.Errorf("Setting MQTT 5 auth data failed: %v", err)
 			return false
 		}
@@ -59,7 +59,7 @@ func Mqtt5BootstrapHandler(ctx context.Context, wg *sync.WaitGroup, startupTimer
 		case <-ctx.Done():
 			return false
 		default:
-			if err := clientMap.ConnectAll(ctx, logger); err != nil {
+			if err := clientMap.ConnectAll(logger); err != nil {
 				startupTimer.SleepForInterval()
 				continue
 			}
