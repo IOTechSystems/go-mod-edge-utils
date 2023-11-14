@@ -25,7 +25,6 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/config"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/container"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/environment"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/flags"
@@ -78,7 +77,7 @@ func NewProcessor(
 
 func (cp *Processor) Process(
 	serviceType string,
-	serviceConfig *config.GeneralConfiguration,
+	serviceConfig interfaces.Configuration,
 	secretProvider interfaces.SecretProviderExt) error {
 
 	if err := cp.loadFromFile(serviceConfig, "service"); err != nil {
@@ -95,7 +94,7 @@ func (cp *Processor) Process(
 	cp.logger.Infof("Configuration loaded from file with %d overrides applied", overrideCount)
 
 	// Now that configuration has been loaded and overrides applied the log level can be set as configured.
-	err = cp.logger.SetLogLevel(serviceConfig.LogLevel)
+	err = cp.logger.SetLogLevel(serviceConfig.GetLogLevel())
 
 	return err
 }

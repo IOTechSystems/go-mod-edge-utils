@@ -30,6 +30,24 @@ type GeneralConfiguration struct {
 	Mqtt5Config     map[string]models.Mqtt5Config
 }
 
+// GetBootstrap returns the configuration elements required by the bootstrap.
+func (c *GeneralConfiguration) GetBootstrap() BootstrapConfiguration {
+	// temporary until we can make backwards-breaking configuration.yaml change
+	return BootstrapConfiguration{
+		Service: &c.Service,
+	}
+}
+
+// GetLogLevel returns the current ConfigurationStruct's log level.
+func (c *GeneralConfiguration) GetLogLevel() string {
+	return c.LogLevel
+}
+
+// GetInsecureSecrets gets the config.InsecureSecrets field from the ConfigurationStruct.
+func (c *GeneralConfiguration) GetInsecureSecrets() InsecureSecrets {
+	return c.InsecureSecrets
+}
+
 // ServiceInfo contains configuration settings necessary for the basic operation of any Edge service.
 type ServiceInfo struct {
 	// Host is the hostname or IP address of the service.

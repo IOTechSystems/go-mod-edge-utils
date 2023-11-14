@@ -24,7 +24,6 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/config"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/configprocessor"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/container"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/environment"
@@ -80,7 +79,7 @@ func RunAndReturnWaitGroup(
 	cancel context.CancelFunc,
 	commonFlags flags.Common,
 	serviceKey string,
-	serviceConfig *config.GeneralConfiguration,
+	serviceConfig interfaces.Configuration,
 	startupTimer startup.Timer,
 	dic *di.Container,
 	useSecretProvider bool,
@@ -152,7 +151,7 @@ func Run(
 	cancel context.CancelFunc,
 	commonFlags flags.Common,
 	serviceKey string,
-	serviceConfig *config.GeneralConfiguration,
+	serviceConfig interfaces.Configuration,
 	startupTimer startup.Timer,
 	dic *di.Container,
 	useSecretProvider bool,
