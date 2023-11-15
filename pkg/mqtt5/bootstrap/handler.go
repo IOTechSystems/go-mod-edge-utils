@@ -23,7 +23,7 @@ func Mqtt5BootstrapHandler(ctx context.Context, wg *sync.WaitGroup, startupTimer
 	if secretProvider == nil {
 		logger.Error("Secret provider is missing. Make sure it is specified to be used in bootstrap.Run()")
 	}
-	mqtt5ConfigMap := container.ConfigurationFrom(dic.Get).Mqtt5Config
+	mqtt5ConfigMap := container.ConfigurationFrom(dic.Get).GetMqtt5Configs()
 	if mqtt5ConfigMap == nil {
 		logger.Error("No Mqtt5Config configuration provided")
 		return false

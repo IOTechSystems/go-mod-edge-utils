@@ -27,6 +27,9 @@ type Configuration interface {
 	// GetLogLevel returns the current ConfigurationStruct's log level.
 	GetLogLevel() string
 
-	// GetInsecureSecrets gets the config.InsecureSecrets field from the ConfigurationStruct.
+	// GetInsecureSecrets gets the config.InsecureSecrets field from the configuration struct.
 	GetInsecureSecrets() config.InsecureSecrets
+
+	// GetMqtt5Configs gets the config.Mqtt5Configs from the configuration struct.
+	GetMqtt5Configs() config.Mqtt5Configs
 }

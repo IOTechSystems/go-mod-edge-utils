@@ -121,7 +121,7 @@ func RunAndReturnWaitGroup(
 	}
 
 	dic.Update(di.ServiceConstructorMap{
-		container.ConfigurationStructName: func(get di.Get) any {
+		container.ConfigurationInterfaceName: func(get di.Get) any {
 			return serviceConfig
 		},
 		container.CancelFuncName: func(get di.Get) any {
