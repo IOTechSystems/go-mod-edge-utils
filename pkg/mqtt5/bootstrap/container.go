@@ -24,12 +24,12 @@ var Mqtt5ClientMapName = di.TypeInstanceToName((*Mqtt5ClientMap)(nil))
 
 // Mqtt5ClientMapFrom helper function queries the DIC and returns Mqtt5ClientMap implementation.
 func Mqtt5ClientMapFrom(get di.Get) *Mqtt5ClientMap {
-	mqtt5Config, ok := get(Mqtt5ClientMapName).(*Mqtt5ClientMap)
+	mqtt5Clients, ok := get(Mqtt5ClientMapName).(*Mqtt5ClientMap)
 	if !ok {
 		return nil
 	}
 
-	return mqtt5Config
+	return mqtt5Clients
 }
 
 // NewMqtt5ClientMap create, initializes and returns new instance of Mqtt5ClientMap

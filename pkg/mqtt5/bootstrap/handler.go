@@ -25,7 +25,7 @@ func Mqtt5BootstrapHandler(ctx context.Context, wg *sync.WaitGroup, startupTimer
 	}
 	mqtt5ConfigMap := container.ConfigurationFrom(dic.Get).GetMqtt5Configs()
 	if mqtt5ConfigMap == nil {
-		logger.Error("No Mqtt5Config configuration provided")
+		logger.Error("No Mqtt5Configs configuration provided")
 		return false
 	}
 
