@@ -6,6 +6,7 @@ require (
 	github.com/eclipse/paho.golang v0.12.0
 	github.com/go-kit/log v0.2.1
 	github.com/go-playground/validator/v10 v10.15.5
+	github.com/google/uuid v1.4.0
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475
 	github.com/stretchr/testify v1.8.4
 	gopkg.in/yaml.v3 v3.0.1
