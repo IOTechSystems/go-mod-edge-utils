@@ -46,7 +46,6 @@ func NewMqtt5Client(logger log.Logger, ctx context.Context, config models.Mqtt5C
 		configuration: config,
 		mqtt5Client: paho.NewClient(paho.ClientConfig{
 			ClientID: config.ClientID,
-			Router:   paho.NewStandardRouter(),
 		}),
 		connect: &paho.Connect{
 			ClientID:   config.ClientID,
@@ -172,6 +171,9 @@ func (c *Mqtt5Client) Disconnect() errors.Error {
 
 // Subscribe creates subscriptions for the specified topics and the message handler.
 // Only support two handleType: paho.MessageHandler and chan models.MessageEnvelope
+// There is a known issue when using wildcard to subscribe the duplicated messages:
+// https://github.com/eclipse/paho.golang/issues/204
+// https://github.com/eclipse/mosquitto/issues/2555
 func (c *Mqtt5Client) Subscribe(topics []string, handlerType any) errors.Error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
