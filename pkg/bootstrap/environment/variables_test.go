@@ -27,6 +27,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/config"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/common"
 	loggerMocks "github.com/IOTechSystems/go-mod-edge-utils/pkg/log/mocks"
 )
 
@@ -55,7 +56,7 @@ func TestGetStartupInfo(t *testing.T) {
 		IntervalEnvName  string
 		ExpectedInterval int
 	}{
-		{"V2 Envs", envKeyStartupDuration, 120, envKeyStartupInterval, 30},
+		{"V2 Envs", common.EnvKeyStartupDuration, 120, common.EnvKeyStartupInterval, 30},
 		{"No Envs", "", bootTimeoutSecondsDefault, "", bootRetrySecondsDefault},
 	}
 
@@ -82,7 +83,7 @@ func TestGetStartupInfo(t *testing.T) {
 
 func TestGetConfigDir(t *testing.T) {
 	_, mockLogger := initializeTest()
-	mockLogger.On("Infof", mock.Anything, "-cd/-configDir", envKeyConfigDir, mock.AnythingOfType("string"))
+	mockLogger.On("Infof", mock.Anything, "-cd/-configDir", common.EnvKeyConfigDir, mock.AnythingOfType("string"))
 
 	testCases := []struct {
 		TestName     string
@@ -90,7 +91,7 @@ func TestGetConfigDir(t *testing.T) {
 		PassedInName string
 		ExpectedName string
 	}{
-		{"With Env Var", envKeyConfigDir, "res", "myres"},
+		{"With Env Var", common.EnvKeyConfigDir, "res", "myres"},
 		{"With No Env Var", "", "res", "res"},
 		{"With No Env Var and no passed in", "", "", defaultConfigDirValue},
 	}
@@ -112,7 +113,7 @@ func TestGetConfigDir(t *testing.T) {
 
 func TestGetConfigFileName(t *testing.T) {
 	_, mockLogger := initializeTest()
-	mockLogger.On("Infof", mock.Anything, "-cf/--configFile", envKeyConfigFile, mock.AnythingOfType("string"))
+	mockLogger.On("Infof", mock.Anything, "-cf/--configFile", common.EnvKeyConfigFile, mock.AnythingOfType("string"))
 
 	testCases := []struct {
 		TestName     string
@@ -120,7 +121,7 @@ func TestGetConfigFileName(t *testing.T) {
 		PassedInName string
 		ExpectedName string
 	}{
-		{"With Env Var", envKeyConfigFile, "configuration.yaml", "configuration.yaml"},
+		{"With Env Var", common.EnvKeyConfigFile, "configuration.yaml", "configuration.yaml"},
 		{"With No Env Var", "", "configuration.yml", "configuration.yml"},
 		{"With No Env Var and no passed in", "", "", "configuration.json"},
 	}

@@ -7,12 +7,8 @@ package models
 import (
 	"context"
 	"github.com/google/uuid"
-)
 
-const (
-	CorrelationID   = "X-Correlation-ID"
-	ContentType     = "Content-Type"
-	ContentTypeJSON = "application/json"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/common"
 )
 
 // MessageEnvelope is the data structure for messages. It wraps the generic message payload with attributes.
@@ -29,13 +25,13 @@ type MessageEnvelope struct {
 
 // NewMessageEnvelope creates a new MessageEnvelope for the specified payload with attributes from the specified context
 func NewMessageEnvelope(payload []byte, ctx context.Context) MessageEnvelope {
-	correlationID := fromContext(ctx, CorrelationID)
+	correlationID := fromContext(ctx, common.CorrelationID)
 	if len(correlationID) == 0 {
 		correlationID = uuid.NewString()
 	}
-	contentType := fromContext(ctx, ContentType)
-	if len(correlationID) == 0 {
-		contentType = ContentTypeJSON
+	contentType := fromContext(ctx, common.ContentType)
+	if len(contentType) == 0 {
+		contentType = common.ContentTypeJSON
 	}
 
 	envelope := MessageEnvelope{
