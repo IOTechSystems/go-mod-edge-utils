@@ -19,14 +19,15 @@ package environment
 import (
 	"encoding/json"
 	"fmt"
-
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/utils"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
 	"os"
 	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/utils"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/common"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
 )
 
 const (
@@ -34,11 +35,6 @@ const (
 	bootRetrySecondsDefault   = 1
 	defaultConfigDirValue     = "./res"
 	defaultConfigFileValue    = "configuration.json"
-
-	envKeyStartupDuration = "EDGE_STARTUP_DURATION"
-	envKeyStartupInterval = "EDGE_STARTUP_INTERVAL"
-	envKeyConfigDir       = "EDGE_CONFIG_DIR"
-	envKeyConfigFile      = "EDGE_CONFIG_FILE"
 
 	configPathSeparator = "/"
 	configNameSeparator = "-"
@@ -318,9 +314,9 @@ func GetStartupInfo(serviceKey string) StartupInfo {
 	}
 
 	// Get the startup timer configuration from environment, if provided.
-	value := os.Getenv(envKeyStartupDuration)
+	value := os.Getenv(common.EnvKeyStartupDuration)
 	if len(value) > 0 {
-		logEnvironmentOverride(logger, "Startup Duration", envKeyStartupDuration, value)
+		logEnvironmentOverride(logger, "Startup Duration", common.EnvKeyStartupDuration, value)
 
 		if n, err := strconv.ParseInt(value, 10, 0); err == nil && n > 0 {
 			startup.Duration = int(n)
@@ -328,9 +324,9 @@ func GetStartupInfo(serviceKey string) StartupInfo {
 	}
 
 	// Get the startup timer interval, if provided.
-	value = os.Getenv(envKeyStartupInterval)
+	value = os.Getenv(common.EnvKeyStartupInterval)
 	if len(value) > 0 {
-		logEnvironmentOverride(logger, "Startup Interval", envKeyStartupInterval, value)
+		logEnvironmentOverride(logger, "Startup Interval", common.EnvKeyStartupInterval, value)
 
 		if n, err := strconv.ParseInt(value, 10, 0); err == nil && n > 0 {
 			startup.Interval = int(n)
@@ -343,10 +339,10 @@ func GetStartupInfo(serviceKey string) StartupInfo {
 // GetConfigDir get the config directory value from a Variables variable value (if it exists)
 // or uses passed in value or default if previous result in blank.
 func GetConfigDir(logger log.Logger, configDir string) string {
-	envValue := os.Getenv(envKeyConfigDir)
+	envValue := os.Getenv(common.EnvKeyConfigDir)
 	if len(envValue) > 0 {
 		configDir = envValue
-		logEnvironmentOverride(logger, "-cd/-configDir", envKeyConfigDir, envValue)
+		logEnvironmentOverride(logger, "-cd/-configDir", common.EnvKeyConfigDir, envValue)
 	}
 
 	if len(configDir) == 0 {
@@ -359,10 +355,10 @@ func GetConfigDir(logger log.Logger, configDir string) string {
 // GetConfigFileName gets the configuration filename value from a Variables variable value (if it exists)
 // or uses passed in value.
 func GetConfigFileName(logger log.Logger, configFileName string) string {
-	envValue := os.Getenv(envKeyConfigFile)
+	envValue := os.Getenv(common.EnvKeyConfigFile)
 	if len(envValue) > 0 {
 		configFileName = envValue
-		logEnvironmentOverride(logger, "-cf/--configFile", envKeyConfigFile, envValue)
+		logEnvironmentOverride(logger, "-cf/--configFile", common.EnvKeyConfigFile, envValue)
 	}
 
 	if len(configFileName) == 0 {

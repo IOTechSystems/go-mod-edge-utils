@@ -25,6 +25,11 @@ func (he HTTPError) Message() string {
 	return fmt.Sprintf("%s(status code:%d)", he.BaseError.Message(), he.httpStatusCode)
 }
 
+// Code returns the status code of this error.
+func (he HTTPError) Code() int {
+	return he.httpStatusCode
+}
+
 // codeMapping determines the correct HTTP response code for the given error kind.
 func codeMapping(kind ErrKind) int {
 	switch kind {
@@ -59,7 +64,7 @@ func codeMapping(kind ErrKind) int {
 	}
 }
 
-// KindMapping determines the correct EdgeX error kind for the given HTTP response code.
+// KindMapping determines the correct error kind for the given HTTP response code.
 func KindMapping(code int) ErrKind {
 	switch code {
 	case http.StatusInternalServerError:

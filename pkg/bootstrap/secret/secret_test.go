@@ -17,17 +17,18 @@ package secret
 
 import (
 	"context"
-	"github.com/stretchr/testify/mock"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/config"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/container"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/environment"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/startup"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/common"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/di"
 	loggerMocks "github.com/IOTechSystems/go-mod-edge-utils/pkg/log/mocks"
 )
@@ -57,7 +58,7 @@ func TestNewSecretProvider(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.Name, func(t *testing.T) {
-			_ = os.Setenv(EnvSecretStore, tc.Secure)
+			_ = os.Setenv(common.EnvSecretStore, tc.Secure)
 			timer := startup.NewStartUpTimer("UnitTest")
 
 			mockLogger := &loggerMocks.Logger{}

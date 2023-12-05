@@ -16,12 +16,13 @@
 package secret
 
 import (
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/interfaces"
 	"os"
+
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/interfaces"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/common"
 )
 
 const (
-	EnvSecretStore = "EDGE_SECURITY_SECRET_STORE"
 	// WildcardName is a special secret name that can be used to register a secret callback for any secret.
 	WildcardName = "*"
 
@@ -64,6 +65,6 @@ func GetSecretData(secretName string, provider interfaces.SecretProvider) (Secre
 
 // IsSecurityEnabled determines if security has been enabled.
 func IsSecurityEnabled() bool {
-	env := os.Getenv(EnvSecretStore)
+	env := os.Getenv(common.EnvSecretStore)
 	return env != "false" // Any other value is considered secure mode enabled
 }

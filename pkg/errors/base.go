@@ -28,7 +28,7 @@ func (be BaseError) Error() string {
 		return be.message
 	}
 
-	// be.wrappedErr.Error functionality gets the error message of the wrapped error and which will handle both CommonEdgeX
+	// be.wrappedErr.Error functionality gets the error message of the wrapped error and which will handle both BaseError
 	// types and Go standard errors(both wrapped and non-wrapped).
 	if be.message != "" {
 		return be.message + " -> " + be.wrappedErr.Error()
@@ -135,8 +135,8 @@ func ToBaseError(err error) BaseError {
 
 // getCallerInformation generates information about the caller function. This function skips the caller which has
 // invoked this function, but rather introspects the calling function 3 frames below this frame in the call stack. This
-// function is a helper function which eliminates the need for the 'callerInfo' field in the `CommonEdgeX` type and
-// providing an 'callerInfo' string when creating an 'CommonEdgeX'
+// function is a helper function which eliminates the need for the 'callerInfo' field in the `BaseError` type and
+// providing an 'callerInfo' string when creating an 'BaseError'
 func getCallerInformation() string {
 	pc := make([]uintptr, 10)
 	runtime.Callers(3, pc)

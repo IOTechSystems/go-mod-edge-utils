@@ -238,6 +238,11 @@ func (c *Mqtt5Client) Unsubscribe(topics []string) errors.Error {
 		return errors.NewBaseError(errors.KindCommunicationError, "", err, nil)
 	}
 
+	for _, t := range topics {
+		c.mqtt5Client.Router.UnregisterHandler(t)
+		c.logger.Debugf("Unregister topic %s from MQTT5 message handler", t)
+	}
+
 	c.logger.Infof("Unsubscribed to %v", strings.Join(topics, ","))
 
 	return nil

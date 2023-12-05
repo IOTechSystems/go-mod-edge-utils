@@ -36,7 +36,7 @@ type TriggerInfo struct {
 }
 
 func TestMergeMaps(t *testing.T) {
-	expectedTriggerType := "edgex-messagebus"
+	expectedTriggerType := "edge-messagebus"
 	expectedHost := "localhost"
 	expectedLogLevel := log.InfoLog
 
