@@ -137,7 +137,7 @@ func (c *Mqtt5Client) Connect() errors.Error {
 	c.mqtt5Client.Conn = conn
 	ca, err := c.mqtt5Client.Connect(c.ctx, c.connect)
 	if ca != nil && ca.ReasonCode != 0 {
-		c.logger.Debugf("Received an MQTT 5 error code: 0x%02x - %s", ca.ReasonCode, ca.Properties.ReasonString)
+		c.logger.Debugf("Received an MQTT 5 reason code: 0x%02x - %s", ca.ReasonCode, ca.Properties.ReasonString)
 	}
 	if err != nil {
 		c.logger.Errorf("Failed to connect to %s://%s", c.configuration.Protocol, server)
@@ -206,7 +206,7 @@ func (c *Mqtt5Client) Subscribe(topics []string, handlerType any) errors.Error {
 		for _, code := range sa.Reasons {
 			// SUBACK returning reason code == QoS means successful
 			if code != byte(c.configuration.QoS) {
-				c.logger.Debugf("Received an MQTT 5 error code: 0x%02x - %s", code, sa.Properties.ReasonString)
+				c.logger.Debugf("Received an MQTT 5 reason code: 0x%02x - %s", code, sa.Properties.ReasonString)
 			}
 		}
 	}
@@ -229,7 +229,7 @@ func (c *Mqtt5Client) Unsubscribe(topics []string) errors.Error {
 	if ua != nil {
 		for _, code := range ua.Reasons {
 			if code != 0 {
-				c.logger.Debugf("Received an MQTT 5 error code: 0x%02x - %s", code, ua.Properties.ReasonString)
+				c.logger.Debugf("Received an MQTT 5 reason code: 0x%02x - %s", code, ua.Properties.ReasonString)
 			}
 		}
 	}
@@ -263,7 +263,7 @@ func (c *Mqtt5Client) Publish(topic string, message models.MessageEnvelope) erro
 	})
 
 	if pa != nil && pa.ReasonCode != 0 {
-		c.logger.Debugf("Received an MQTT 5 error code: 0x%02x - %s", pa.ReasonCode, pa.Properties.ReasonString)
+		c.logger.Debugf("Received an MQTT 5 reason code: 0x%02x - %s", pa.ReasonCode, pa.Properties.ReasonString)
 	}
 	if err != nil {
 		c.logger.Errorf("Failed to send message to %s", topic)
