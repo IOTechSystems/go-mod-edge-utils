@@ -2,7 +2,7 @@
 // Copyright (C) 2024 IOTech Ltd
 //
 
-package pkg
+package rest
 
 import (
 	"bytes"
