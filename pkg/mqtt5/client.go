@@ -215,7 +215,7 @@ func (c *Mqtt5Client) Subscribe(topics []string, handlerType any) errors.Error {
 		return errors.NewBaseError(errors.KindCommunicationError, "", err, nil)
 	}
 
-	c.logger.Infof("Subscribed to %v", strings.Join(topics, ","))
+	c.logger.Debugf("Subscribed to %v", strings.Join(topics, ","))
 
 	return nil
 }
@@ -243,7 +243,7 @@ func (c *Mqtt5Client) Unsubscribe(topics []string) errors.Error {
 		c.logger.Debugf("Unregister topic %s from MQTT5 message handler", t)
 	}
 
-	c.logger.Infof("Unsubscribed to %v", strings.Join(topics, ","))
+	c.logger.Debugf("Unsubscribed to %v", strings.Join(topics, ","))
 
 	return nil
 }
