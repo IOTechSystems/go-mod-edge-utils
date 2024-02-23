@@ -4,7 +4,7 @@
 
 @Library("devops-libraries") _
 
-goModVersionTag(
+repoVersionTag(
     project: "go-mod-edge-utils",
     version: "1.0"
 )
