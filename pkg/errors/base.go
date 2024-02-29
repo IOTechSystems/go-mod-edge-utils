@@ -127,10 +127,25 @@ func NewBaseError(kind ErrKind, errMsg string, err error, detail ErrDetails) Bas
 	}
 }
 
+// BaseErrorWrapper creates a new BaseError by wrapping an existing Error
+func BaseErrorWrapper(err Error) BaseError {
+	return NewBaseError(err.Kind(), "", err, err.Details())
+}
+
 // ToBaseError creates a new BaseError with Kind found from err
 func ToBaseError(err error) BaseError {
+	var (
+		e       Error
+		details ErrDetails
+	)
+
+	// If the error is Error type, extract and preserve the details
+	if errors.As(err, &e) {
+		details = e.Details()
+	}
+
 	kind := Kind(err)
-	return NewBaseError(kind, "", err, nil)
+	return NewBaseError(kind, "", err, details)
 }
 
 // getCallerInformation generates information about the caller function. This function skips the caller which has
