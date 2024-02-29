@@ -28,6 +28,7 @@ const (
 	KindUnauthorized          ErrKind = "Unauthorized"
 	KindAuthenticationFailure ErrKind = "AuthenticationFailure"
 	KindPayloadDecodeFailure  ErrKind = "PayloadDecodeFailure"
+	KindTimeout               ErrKind = "Timeout"
 )
 
 // ErrDetails is a detailed mapping to set extra information with the error
