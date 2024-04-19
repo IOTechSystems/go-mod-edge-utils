@@ -2,7 +2,7 @@
 // Copyright (C) 2024 IOTech Ltd
 //
 
-package http
+package rest
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/common"
 )
 
-func WriteHttpHeader(w http.ResponseWriter, ctx context.Context, statusCode int) {
+func WriteDefaultHttpHeader(w http.ResponseWriter, ctx context.Context, statusCode int) {
 	w.Header().Set(common.CorrelationID, handlers.FromContext(ctx))
 	w.Header().Set(common.ContentType, common.ContentTypeJSON)
 	w.WriteHeader(statusCode)

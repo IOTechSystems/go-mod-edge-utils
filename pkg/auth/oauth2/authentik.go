@@ -13,8 +13,8 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/oauth2"
 
-	httpUtils "github.com/IOTechSystems/go-mod-edge-utils/pkg/http"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/rest"
 )
 
 type AuthentikAuthenticator struct {
@@ -119,7 +119,7 @@ func (a *AuthentikAuthenticator) Callback() http.HandlerFunc {
 			http.Error(w, fmt.Sprintf("user info validation failed: %v", err), http.StatusUnauthorized)
 			return
 		}
-		httpUtils.WriteHttpHeader(w, r.Context(), http.StatusOK)
+		rest.WriteDefaultHttpHeader(w, r.Context(), http.StatusOK)
 		_, err = w.Write(userData)
 		if err != nil {
 			a.lc.Errorf("failed to write the response body: %v", err)
