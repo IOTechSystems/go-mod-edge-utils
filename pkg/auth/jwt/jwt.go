@@ -56,9 +56,10 @@ func CreateToken(name, secretKey, refreshSecretKey string, atExpiresFromNow, reE
 	}
 
 	rtClaims := jwt.MapClaims{}
+	rtClaims[Issuer] = IOTechIssuer
 	rtClaims[ClaimUsername] = name
 	rtClaims[ClaimRefreshId] = td.RefreshId
-	atClaims[ExpiresAt] = td.RtExpires
+	rtClaims[ExpiresAt] = td.RtExpires
 	rt := jwt.NewWithClaims(jwt.SigningMethodHS256, rtClaims)
 	td.RefreshToken, err = rt.SignedString([]byte(refreshSecretKey))
 	if err != nil {
@@ -68,22 +69,31 @@ func CreateToken(name, secretKey, refreshSecretKey string, atExpiresFromNow, reE
 	return td, nil
 }
 
-// ValidateToken validates the given token string and gets the accessId and username.
-func ValidateToken(tokenString string, secretKey string) (string, string, errors.Error) {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header[Algorithm])
-		}
-
-		return []byte(secretKey), nil
-	})
+// ValidateAccessToken validates the given access token string and gets the accessId and username.
+func ValidateAccessToken(tokenString string, secretKey string) (string, string, errors.Error) {
+	claim, err := validateToken(tokenString, secretKey)
 	if err != nil {
-		return "", "", errors.NewBaseError(errors.KindUnauthorized, invalidMsg, err, nil)
+		return "", "", errors.BaseErrorWrapper(err)
 	}
 
-	claim, ok := token.Claims.(jwt.MapClaims)
-	if !ok || !token.Valid {
-		return "", "", errors.NewBaseError(errors.KindUnauthorized, invalidMsg, nil, nil)
+	accessId, ok := claim[ClaimAccessId].(string)
+	if !ok {
+		return "", "", errors.NewBaseError(errors.KindServerError, unexpectedMsg, nil, nil)
+	}
+
+	username, ok := claim[ClaimUsername].(string)
+	if !ok {
+		return "", "", errors.NewBaseError(errors.KindServerError, unexpectedMsg, nil, nil)
+	}
+
+	return accessId, username, nil
+}
+
+// ValidateRefreshToken validates the given refresh token string and gets the refreshId and username.
+func ValidateRefreshToken(tokenString string, refreshSecretKey string) (string, string, errors.Error) {
+	claim, err := validateToken(tokenString, refreshSecretKey)
+	if err != nil {
+		return "", "", errors.BaseErrorWrapper(err)
 	}
 
 	refreshId, ok := claim[ClaimRefreshId].(string)
@@ -97,4 +107,35 @@ func ValidateToken(tokenString string, secretKey string) (string, string, errors
 	}
 
 	return refreshId, username, nil
+}
+
+// validateToken validates the given token string and gets claims map.
+func validateToken(tokenString string, secretKey string) (jwt.MapClaims, errors.Error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header[Algorithm])
+		}
+
+		return []byte(secretKey), nil
+	})
+	if err != nil {
+		return nil, errors.NewBaseError(errors.KindUnauthorized, invalidMsg, err, nil)
+	}
+
+	claim, ok := token.Claims.(jwt.MapClaims)
+	if !ok || !token.Valid {
+		return nil, errors.NewBaseError(errors.KindUnauthorized, invalidMsg, nil, nil)
+	}
+
+	sameIssuer := claim.VerifyIssuer(IOTechIssuer, true)
+	if !sameIssuer {
+		return nil, errors.NewBaseError(errors.KindUnauthorized, unexpectedMsg, nil, nil)
+	}
+
+	notExpired := claim.VerifyExpiresAt(jwt.TimeFunc().Unix(), true)
+	if !notExpired {
+		return nil, errors.NewBaseError(errors.KindUnauthorized, authRevokedMsg, nil, nil)
+	}
+
+	return claim, nil
 }
