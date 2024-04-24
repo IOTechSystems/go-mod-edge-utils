@@ -27,7 +27,7 @@ func GetTokenStringFromRequest(r *http.Request) (string, errors.Error) {
 }
 
 // CreateToken creates a new token with the given name and expiration time, specified in hours from now with the default expiration time of 2 hours for access token and 7 days for refresh token
-func CreateToken(name string, atExpiresFromNow *int64, reExpiresFromNow *int64) (*TokenDetails, errors.Error) {
+func CreateToken(name, secretKey, refreshSecretKey string, atExpiresFromNow, reExpiresFromNow *int64) (*TokenDetails, errors.Error) {
 	var err error
 	td := &TokenDetails{}
 
@@ -44,11 +44,11 @@ func CreateToken(name string, atExpiresFromNow *int64, reExpiresFromNow *int64) 
 	td.RtExpires = time.Now().Add(time.Hour * 24 * 7).Unix() // default to 7 days
 	// Creating Access Token
 	atClaims := jwt.MapClaims{}
-	atClaims[issuer] = IOTechIssuer
-	atClaims[authorized] = true
-	atClaims[claimUsername] = name
-	atClaims[claimAccessId] = td.AccessId
-	atClaims[expiresAt] = td.AtExpires
+	atClaims[Issuer] = IOTechIssuer
+	atClaims[Authorized] = true
+	atClaims[ClaimUsername] = name
+	atClaims[ClaimAccessId] = td.AccessId
+	atClaims[ExpiresAt] = td.AtExpires
 	at := jwt.NewWithClaims(jwt.SigningMethodHS256, atClaims)
 	td.AccessToken, err = at.SignedString([]byte(secretKey))
 	if err != nil {
@@ -56,9 +56,9 @@ func CreateToken(name string, atExpiresFromNow *int64, reExpiresFromNow *int64) 
 	}
 
 	rtClaims := jwt.MapClaims{}
-	rtClaims[claimUsername] = name
-	rtClaims[claimRefreshId] = td.RefreshId
-	atClaims[expiresAt] = td.RtExpires
+	rtClaims[ClaimUsername] = name
+	rtClaims[ClaimRefreshId] = td.RefreshId
+	atClaims[ExpiresAt] = td.RtExpires
 	rt := jwt.NewWithClaims(jwt.SigningMethodHS256, rtClaims)
 	td.RefreshToken, err = rt.SignedString([]byte(refreshSecretKey))
 	if err != nil {
@@ -72,7 +72,7 @@ func CreateToken(name string, atExpiresFromNow *int64, reExpiresFromNow *int64) 
 func ValidateToken(tokenString string, secretKey string) (string, string, errors.Error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header[algorithm])
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header[Algorithm])
 		}
 
 		return []byte(secretKey), nil
@@ -86,12 +86,12 @@ func ValidateToken(tokenString string, secretKey string) (string, string, errors
 		return "", "", errors.NewBaseError(errors.KindUnauthorized, invalidMsg, nil, nil)
 	}
 
-	refreshId, ok := claim[claimRefreshId].(string)
+	refreshId, ok := claim[ClaimRefreshId].(string)
 	if !ok {
 		return "", "", errors.NewBaseError(errors.KindServerError, unexpectedMsg, nil, nil)
 	}
 
-	username, ok := claim[claimUsername].(string)
+	username, ok := claim[ClaimUsername].(string)
 	if !ok {
 		return "", "", errors.NewBaseError(errors.KindServerError, unexpectedMsg, nil, nil)
 	}
