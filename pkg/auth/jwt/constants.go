@@ -8,15 +8,13 @@ package jwt
 const (
 	IOTechIssuer = "IOTech"
 
-	algorithm        = "alg"
-	authorized       = "authorized"
-	claimAccessId    = "access_id"
-	claimRefreshId   = "refresh_id"
-	claimUsername    = "user_name"
-	expiresAt        = "exp"
-	issuer           = "iss"
-	refreshSecretKey = "IOTechRefresh"
-	secretKey        = "IOTechSystems"
+	Algorithm      = "alg"
+	Authorized     = "authorized"
+	ClaimAccessId  = "access_id"
+	ClaimRefreshId = "refresh_id"
+	ClaimUsername  = "user_name"
+	ExpiresAt      = "exp"
+	Issuer         = "iss"
 )
 
 // Constants related to HTTP headers
