@@ -26,6 +26,7 @@ const (
 // Constants related to error messages
 const (
 	authRequiredMsg = "JWT Authentication required"
+	authRevokedMsg  = "authorization revoked"
 	failMsg         = "failed to sign and create token"
 	unexpectedMsg   = "unexpected result parsing token"
 	invalidMsg      = "invalid token"
