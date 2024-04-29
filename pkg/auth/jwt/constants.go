@@ -19,6 +19,9 @@ const (
 
 // Constants related to HTTP headers
 const (
+	AccessTokenHeader  = "Access-Token"
+	RefreshTokenHeader = "Refresh-Token"
+
 	authorizationHeader = "Authorization"
 	bearer              = "Bearer"
 )

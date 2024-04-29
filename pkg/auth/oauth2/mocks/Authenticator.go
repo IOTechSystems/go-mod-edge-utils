@@ -5,6 +5,10 @@ package mocks
 import (
 	http "net/http"
 
+	errors "github.com/IOTechSystems/go-mod-edge-utils/pkg/errors"
+
+	jwt "github.com/IOTechSystems/go-mod-edge-utils/pkg/auth/jwt"
+
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -13,17 +17,17 @@ type Authenticator struct {
 	mock.Mock
 }
 
-// Callback provides a mock function with given fields:
-func (_m *Authenticator) Callback() http.HandlerFunc {
-	ret := _m.Called()
+// Callback provides a mock function with given fields: _a0
+func (_m *Authenticator) Callback(_a0 func(interface{}) (*jwt.TokenDetails, errors.Error)) http.HandlerFunc {
+	ret := _m.Called(_a0)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Callback")
 	}
 
 	var r0 http.HandlerFunc
-	if rf, ok := ret.Get(0).(func() http.HandlerFunc); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(func(interface{}) (*jwt.TokenDetails, errors.Error)) http.HandlerFunc); ok {
+		r0 = rf(_a0)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(http.HandlerFunc)
