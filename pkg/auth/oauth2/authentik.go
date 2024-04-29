@@ -13,15 +13,15 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/oauth2"
 
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/auth/jwt"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/errors"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/rest"
 )
 
 type AuthentikAuthenticator struct {
-	Config      *oauth2.Config
-	UserInfoURL string
-	state       string
-	lc          log.Logger
+	Config Config
+	state  string
+	lc     log.Logger
 }
 
 type AuthentikUserInfo struct {
@@ -38,36 +38,50 @@ type AuthentikUserInfo struct {
 	UserID string `json:"id"`
 }
 
-// NewAuthentikConfigs returns an oauth2.Config object with the given parameters.
-func NewAuthentikConfigs(clientId string, clientSecret string, redirectURL string, endpoint oauth2.Endpoint) *oauth2.Config {
-	config := &oauth2.Config{
+// NewAuthentikConfigs returns a new Config for authentik.
+func NewAuthentikConfigs(clientId, clientSecret, authURL, tokenURL, redirectURL, userInfoURL, redirectPath string) Config {
+	c := &oauth2.Config{
 		ClientID:     clientId,
 		ClientSecret: clientSecret,
 		RedirectURL:  redirectURL,
 		Scopes:       []string{"openid", "profile", "email"}, // default and common scopes of authentik
-		Endpoint:     endpoint,
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  authURL,
+			TokenURL: tokenURL,
+		},
+	}
+
+	if redirectPath == "" {
+		redirectPath = "/"
+	}
+
+	config := Config{
+		GoOAuth2Config: c,
+		UserInfoURL:    userInfoURL,
+		RedirectPath:   redirectPath,
 	}
 	return config
 }
 
 // NewAuthentikAuthenticator creates a new Authenticator for authentik.
-func NewAuthentikAuthenticator(config *oauth2.Config, userInfoURL string, lc log.Logger) Authenticator {
+func NewAuthentikAuthenticator(config Config, lc log.Logger) Authenticator {
 	// state should be a random string to protect against CSRF attacks
 	state := uuid.NewString()
 	lc.Debug("Initiating authentik authenticator.")
-	return &AuthentikAuthenticator{Config: config, UserInfoURL: userInfoURL, state: state, lc: lc}
+	return &AuthentikAuthenticator{Config: config, state: state, lc: lc}
 }
 
 // RequestAuth returns a http.HandlerFunc that redirects the user to the OAuth2 provider for authentication.
 func (a *AuthentikAuthenticator) RequestAuth() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		url := a.Config.AuthCodeURL(a.state, oauth2.AccessTypeOffline)
+		url := a.Config.GoOAuth2Config.AuthCodeURL(a.state, oauth2.AccessTypeOffline)
 		http.Redirect(w, r, url, http.StatusFound)
 	}
 }
 
 // Callback returns a http.HandlerFunc that exchanges the authorization code for an access token and fetches user info from the OAuth2 provider.
-func (a *AuthentikAuthenticator) Callback() http.HandlerFunc {
+// The parameter is a function that takes the user info and returns the JWT token or an error.
+func (a *AuthentikAuthenticator) Callback(loginAndGetJWT func(userInfo any) (token *jwt.TokenDetails, err errors.Error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		code := r.URL.Query().Get(codeParam)
 		state := r.URL.Query().Get(stateParam)
@@ -77,7 +91,7 @@ func (a *AuthentikAuthenticator) Callback() http.HandlerFunc {
 			return
 		}
 
-		token, err := a.Config.Exchange(r.Context(), code)
+		token, err := a.Config.GoOAuth2Config.Exchange(r.Context(), code)
 		a.lc.Debugf("exchange authentication code %v for the access token", code)
 		if err != nil {
 			a.lc.Errorf("failed to exchange token, err: %v", err)
@@ -85,9 +99,9 @@ func (a *AuthentikAuthenticator) Callback() http.HandlerFunc {
 			return
 		}
 
-		client := a.Config.Client(r.Context(), token)
-		resp, err := client.Get(a.UserInfoURL)
-		a.lc.Debugf("fetching user info from %v", a.UserInfoURL)
+		client := a.Config.GoOAuth2Config.Client(r.Context(), token)
+		resp, err := client.Get(a.Config.UserInfoURL)
+		a.lc.Debugf("fetching user info from %v", a.Config.UserInfoURL)
 		if err != nil {
 			a.lc.Errorf("failed to fetch user info: %v", err)
 			http.Error(w, fmt.Sprintf("failed to fetch user info: %v", err), http.StatusInternalServerError)
@@ -119,13 +133,18 @@ func (a *AuthentikAuthenticator) Callback() http.HandlerFunc {
 			http.Error(w, fmt.Sprintf("user info validation failed: %v", err), http.StatusUnauthorized)
 			return
 		}
-		rest.WriteDefaultHttpHeader(w, r.Context(), http.StatusOK)
-		_, err = w.Write(userData)
+
+		tokenDetails, err := loginAndGetJWT(userInfo)
 		if err != nil {
-			a.lc.Errorf("failed to write the response body: %v", err)
-			http.Error(w, fmt.Sprintf("fail to write the response body: %v", err), http.StatusInternalServerError)
+			a.lc.Errorf("failed to log in: %v", err)
+			http.Error(w, fmt.Sprintf("failed to log in: %v", err), http.StatusInternalServerError)
 			return
 		}
+
+		// Write the token to the response header and redirect to the redirect path
+		w.Header().Set(jwt.AccessTokenHeader, tokenDetails.AccessToken)
+		w.Header().Set(jwt.RefreshTokenHeader, tokenDetails.RefreshToken)
+		http.Redirect(w, r, a.Config.RedirectPath, http.StatusSeeOther)
 	}
 }
 

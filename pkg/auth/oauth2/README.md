@@ -18,8 +18,12 @@ import (
 	goOauth2 "golang.org/x/oauth2"
 	"net/http"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/auth/oauth2"
 	"github.com/labstack/echo/v4"
+	
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/auth/jwt"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/auth/oauth2"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/errors"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
 )
 
 const (
@@ -32,27 +36,44 @@ const (
 	authURL      = "http://localhost:9000/application/o/authorize/"
 	tokenURL     = "http://localhost:9000/application/o/token/"
 	userInfoURL  = "http://localhost:9000/application/o/userinfo/"
+	redirectPath = "/"
 )
 
 func main() {
 	e := echo.New()
 
 	// Set up the OAuth2 configuration for authentik
-	authEndpoint := goOauth2.Endpoint{
-		AuthURL:  authURL,
-		TokenURL: tokenURL,
-	}
-	config := oauth2.NewAuthentikConfigs(clientID, clientSecret, redirectURL, authEndpoint)
+	config := oauth2.NewAuthentikConfigs(clientID, clientSecret, authURL, tokenURL, redirectURL, userInfoURL, redirectPath)
+
+	logger := log.InitLogger("main", log.InfoLog, nil)
 
 	// Create the authentik OAuth2 authenticator
-	oauth2Authenticator := oauth2.NewAuthentikAuthenticator(config, userInfoURL)
+	oauth2Authenticator := oauth2.NewAuthentikAuthenticator(config, logger)
 
 	e.GET("/", func(c echo.Context) error {
 		return c.String(http.StatusOK, "Hello, World!")
 	})
 	// Set up the login and callback routes
 	e.GET("/login", echo.WrapHandler(oauth2Authenticator.RequestAuth()))
-	e.GET("/callback", echo.WrapHandler(oauth2Authenticator.Callback()))
+	e.GET("/callback", echo.WrapHandler(oauth2Authenticator.Callback(handleUserInfo)))
 	e.Logger.Fatal(e.Start(":8080"))
+}
+
+// handleUserInfo is a callback function that is called after the user is authenticated from the OAuth2 provider.
+func handleUserInfo(userInfo any) (token *jwt.TokenDetails, err errors.Error) {
+	userInfo, ok := userInfo.(oauth2.AuthentikUserInfo)
+	if !ok {
+		return nil, errors.NewBaseError(errors.KindServerError, "failed to cast user info to AuthentikUserInfo", nil, nil)
+	}
+
+	fakeToken := &jwt.TokenDetails{
+		AccessToken:  "accesstoken",
+		RefreshToken: "refreshtoken",
+		AccessId:     "accessid",
+		RefreshId:    "refreshid",
+		AtExpires:    0,
+		RtExpires:    0,
+	}
+	return fakeToken, nil
 }
 ```

@@ -12,6 +12,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/auth/jwt"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/errors"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
 )
 
@@ -27,24 +29,29 @@ const (
 	mockCallbackPath = "/callback"
 	mockAuthPath     = "/auth"
 	mockRedirectURL  = "http://localhost:8080" + mockCallbackPath
+	mockRedirectPath = "/"
 )
 
-func getMockConfigs() *oauth2.Config {
-	return &oauth2.Config{
-		ClientID:     mockClientID,
-		ClientSecret: mockClientSecret,
-		RedirectURL:  mockRedirectURL,
-		Endpoint: oauth2.Endpoint{
-			AuthURL:  mockSeverURL + mockAuthPath,
-			TokenURL: mockSeverURL + mockTokenPath,
+func getMockConfigs() Config {
+	return Config{
+		GoOAuth2Config: &oauth2.Config{
+			ClientID:     mockClientID,
+			ClientSecret: mockClientSecret,
+			RedirectURL:  mockRedirectURL,
+			Endpoint: oauth2.Endpoint{
+				AuthURL:  mockSeverURL + mockAuthPath,
+				TokenURL: mockSeverURL + mockTokenPath,
+			},
 		},
+		UserInfoURL:  mockSeverURL + mockUserInfoPath,
+		RedirectPath: mockRedirectPath,
 	}
 }
 
 func newAuthentikAuthenticator() Authenticator {
 	logger := log.InitLogger(mockServiceName, log.InfoLog, nil)
 	configs := getMockConfigs()
-	return NewAuthentikAuthenticator(configs, mockSeverURL+mockUserInfoPath, logger)
+	return NewAuthentikAuthenticator(configs, logger)
 }
 
 func TestMain(m *testing.M) {
@@ -66,14 +73,14 @@ func TestCallbackWithCorrectState(t *testing.T) {
 	authenticator, state := performRequestAuth(t)
 	rr := performCallback(t, state, authenticator)
 
-	// Check if the response status code is http.StatusOK (200)
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	// Check if the response status code is http.StatusSeeOther (303)
+	if status := rr.Code; status != http.StatusSeeOther {
+		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusSeeOther)
 	}
 
-	// Check if the response body contains the expected message
-	if body := rr.Body.String(); body != mockUserInfo {
-		t.Errorf("handler returned unexpected body: got %v want %v", body, mockUserInfo)
+	// Check if the response header contains the expected token
+	if header := rr.Header(); header.Get(jwt.AccessTokenHeader) != "accesstoken" || header.Get(jwt.RefreshTokenHeader) != "refreshtoken" {
+		t.Errorf("handler returned unexpected header: got %v want %v", header, "Access-Token: accesstoken\nRefresh-Token: refreshtoken\n")
 	}
 }
 
@@ -162,6 +169,23 @@ func performCallback(t *testing.T, state string, authenticator Authenticator) *h
 	rr := httptest.NewRecorder()
 
 	// Serve the Callback HTTP request
-	authenticator.Callback().ServeHTTP(rr, req)
+	authenticator.Callback(mockHandleUserInfo).ServeHTTP(rr, req)
 	return rr
+}
+
+func mockHandleUserInfo(userInfo any) (token *jwt.TokenDetails, err errors.Error) {
+	_, ok := userInfo.(AuthentikUserInfo)
+	if !ok {
+		return nil, errors.NewBaseError(errors.KindServerError, "failed to cast user info to AuthentikUserInfo", nil, nil)
+	}
+
+	fakeToken := &jwt.TokenDetails{
+		AccessToken:  "accesstoken",
+		RefreshToken: "refreshtoken",
+		AccessId:     "1123",
+		RefreshId:    "123",
+		AtExpires:    123,
+		RtExpires:    123,
+	}
+	return fakeToken, nil
 }
