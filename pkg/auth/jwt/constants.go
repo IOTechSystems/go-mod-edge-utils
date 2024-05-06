@@ -17,10 +17,12 @@ const (
 	Issuer         = "iss"
 )
 
-// Constants related to HTTP headers
+// Constants related to Cookie and HTTP headers
 const (
-	AccessTokenHeader  = "Access-Token"
-	RefreshTokenHeader = "Refresh-Token"
+	AccessTokenCookie = "IOTech_access_token"
+	// This is not potential hardcoded credentials
+	// nolint:gosec
+	RefreshTokenCookie = "IOTech_refresh_token"
 
 	authorizationHeader = "Authorization"
 	bearer              = "Bearer"

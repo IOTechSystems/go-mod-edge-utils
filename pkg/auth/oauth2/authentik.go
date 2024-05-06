@@ -141,9 +141,8 @@ func (a *AuthentikAuthenticator) Callback(loginAndGetJWT func(userInfo any) (tok
 			return
 		}
 
-		// Write the token to the response header and redirect to the redirect path
-		w.Header().Set(jwt.AccessTokenHeader, tokenDetails.AccessToken)
-		w.Header().Set(jwt.RefreshTokenHeader, tokenDetails.RefreshToken)
+		// Set the tokens to cookie and redirect to the redirect path
+		jwt.SetTokensToCookie(w, tokenDetails)
 		http.Redirect(w, r, a.Config.RedirectPath, http.StatusSeeOther)
 	}
 }

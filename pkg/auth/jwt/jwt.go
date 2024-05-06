@@ -139,3 +139,56 @@ func validateToken(tokenString string, secretKey string) (jwt.MapClaims, errors.
 
 	return claim, nil
 }
+
+// SetTokensToCookie sets the access token and refresh token to the response cookie
+func SetTokensToCookie(w http.ResponseWriter, t *TokenDetails) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     AccessTokenCookie,
+		Value:    t.AccessToken,
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
+		Expires:  time.Unix(t.AtExpires, 0),
+	})
+	http.SetCookie(w, &http.Cookie{
+		Name:     RefreshTokenCookie,
+		Value:    t.RefreshToken,
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
+		Expires:  time.Unix(t.RtExpires, 0),
+	})
+}
+
+// GetTokensFromCookie gets the access token and refresh token from the request cookie
+func GetTokensFromCookie(r *http.Request) (string, string) {
+	accessCookie, err := r.Cookie(AccessTokenCookie)
+	if err != nil {
+		return "", ""
+	}
+	refreshCookie, err := r.Cookie(RefreshTokenCookie)
+	if err != nil {
+		return "", ""
+	}
+	return strings.TrimSpace(accessCookie.Value), strings.TrimSpace(refreshCookie.Value)
+}
+
+// RemoveTokensFromCookie removes the access token and refresh token from the response cookie
+func RemoveTokensFromCookie(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     AccessTokenCookie,
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
+		Expires:  time.Now(),
+	})
+	http.SetCookie(w, &http.Cookie{
+		Name:     RefreshTokenCookie,
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
+		Expires:  time.Now(),
+	})
+}
