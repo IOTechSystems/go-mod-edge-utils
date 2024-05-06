@@ -78,9 +78,20 @@ func TestCallbackWithCorrectState(t *testing.T) {
 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusSeeOther)
 	}
 
-	// Check if the response header contains the expected token
-	if header := rr.Header(); header.Get(jwt.AccessTokenHeader) != "accesstoken" || header.Get(jwt.RefreshTokenHeader) != "refreshtoken" {
-		t.Errorf("handler returned unexpected header: got %v want %v", header, "Access-Token: accesstoken\nRefresh-Token: refreshtoken\n")
+	// Check if the Tokens are set as cookies
+	foundAccessToken := false
+	foundRefreshToken := false
+	for _, cookie := range rr.Result().Cookies() {
+		if cookie.Name == jwt.AccessTokenCookie {
+			foundAccessToken = true
+		}
+		if cookie.Name == jwt.RefreshTokenCookie {
+			foundRefreshToken = true
+		}
+	}
+
+	if !foundAccessToken || !foundRefreshToken {
+		t.Errorf("handler did not set expected cookies. Access Token: %v, Refresh Token: %v", foundAccessToken, foundRefreshToken)
 	}
 }
 
