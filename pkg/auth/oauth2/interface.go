@@ -7,6 +7,8 @@ package oauth2
 import (
 	"net/http"
 
+	"golang.org/x/oauth2"
+
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/auth/jwt"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/errors"
 )
@@ -18,4 +20,6 @@ type Authenticator interface {
 	// Callback returns a http.HandlerFunc that exchanges the authorization code for an access token and fetches user info from the OAuth2 provider.
 	// The parameter is a function that takes the user info and returns the JWT token or an error.
 	Callback(func(userInfo any) (token *jwt.TokenDetails, err errors.Error)) http.HandlerFunc
+	// GetTokenByUserID returns the cache token by user ID.
+	GetTokenByUserID(userId string) (*oauth2.Token, errors.Error)
 }
