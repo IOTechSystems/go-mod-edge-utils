@@ -5,12 +5,15 @@
 package oauth2
 
 import (
-	"golang.org/x/oauth2"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"golang.org/x/oauth2"
 
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/auth/jwt"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/errors"
@@ -109,6 +112,29 @@ func TestCallbackWithIncorrectState(t *testing.T) {
 	if body := rr.Body.String(); body != expectedMsg {
 		t.Errorf("handler returned unexpected body: got %v want %v", body, expectedMsg)
 	}
+}
+
+func TestGetTokenByUserIDWithTokenNotFound(t *testing.T) {
+	authenticator := newAuthentikAuthenticator()
+	_, err := authenticator.GetTokenByUserID(mockUserId)
+
+	assert.ErrorIs(t, err, errors.NewBaseError(errors.KindEntityDoesNotExist, fmt.Sprintf("token not found for the user %s", mockUserId), nil, nil))
+}
+
+func TestGetTokenByUserID(t *testing.T) {
+	authenticator, state := performRequestAuth(t)
+	rr := performCallback(t, state, authenticator)
+
+	// Check if the response status code is http.StatusSeeOther (303)
+	if status := rr.Code; status != http.StatusSeeOther {
+		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusSeeOther)
+	}
+
+	// Check if the Tokens are cached for the user
+	token, err := authenticator.GetTokenByUserID(mockUserId)
+
+	assert.NoError(t, err, "should not get an error")
+	assert.NotNil(t, token, "token should not be nil")
 }
 
 func performRequestAuth(t *testing.T) (Authenticator, string) {

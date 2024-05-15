@@ -5,10 +5,12 @@
 package oauth2
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"sync"
 
 	"github.com/google/uuid"
 	"golang.org/x/oauth2"
@@ -20,6 +22,9 @@ import (
 
 type AuthentikAuthenticator struct {
 	Config Config
+	// tokens is a map used to store the token details from the OAuth2 provider, the key is the user ID
+	tokens map[string]*oauth2.Token
+	mu     sync.RWMutex
 	state  string
 	lc     log.Logger
 }
@@ -68,7 +73,7 @@ func NewAuthentikAuthenticator(config Config, lc log.Logger) Authenticator {
 	// state should be a random string to protect against CSRF attacks
 	state := uuid.NewString()
 	lc.Debug("Initiating authentik authenticator.")
-	return &AuthentikAuthenticator{Config: config, state: state, lc: lc}
+	return &AuthentikAuthenticator{Config: config, tokens: make(map[string]*oauth2.Token), state: state, lc: lc}
 }
 
 // RequestAuth returns a http.HandlerFunc that redirects the user to the OAuth2 provider for authentication.
@@ -134,6 +139,11 @@ func (a *AuthentikAuthenticator) Callback(loginAndGetJWT func(userInfo any) (tok
 			return
 		}
 
+		// Store the token details in the map
+		a.mu.Lock()
+		a.tokens[userInfo.UserID] = token
+		a.mu.Unlock()
+
 		tokenDetails, err := loginAndGetJWT(userInfo)
 		if err != nil {
 			a.lc.Errorf("failed to log in: %v", err)
@@ -153,4 +163,47 @@ func (u *AuthentikUserInfo) Validate() error {
 		return fmt.Errorf("'%s' is not verified email", u.Email)
 	}
 	return nil
+}
+
+// GetTokenByUserID returns the oauth2 token by user ID
+func (a *AuthentikAuthenticator) GetTokenByUserID(userId string) (*oauth2.Token, errors.Error) {
+	a.mu.RLock()
+	token, ok := a.tokens[userId]
+	a.mu.RUnlock()
+	if !ok || token == nil {
+		return nil, errors.NewBaseError(errors.KindEntityDoesNotExist, fmt.Sprintf("token not found for the user %s", userId), nil, nil)
+	}
+
+	var err errors.Error
+	if !token.Valid() {
+		a.lc.Debug("Token is invalid or expired, try to refresh it.")
+		// Try to refresh the token
+		token, err = a.refreshToken(userId, token)
+		if err != nil {
+			return nil, errors.BaseErrorWrapper(err)
+		}
+	}
+
+	return token, nil
+}
+
+// refreshToken refreshes the given token
+func (a *AuthentikAuthenticator) refreshToken(userId string, token *oauth2.Token) (*oauth2.Token, errors.Error) {
+	if token == nil {
+		return nil, nil
+	}
+
+	newToken, err := a.Config.GoOAuth2Config.Exchange(context.Background(), token.RefreshToken)
+	a.lc.Debug("exchange refresh token for the new token")
+	if err != nil {
+		a.lc.Errorf("failed to exchange token, err: %v", err)
+		return nil, errors.NewBaseError(errors.KindServerError, "failed to exchange token", err, nil)
+	}
+
+	// Store the new token
+	a.mu.Lock()
+	a.tokens[userId] = newToken
+	a.mu.Unlock()
+
+	return newToken, nil
 }

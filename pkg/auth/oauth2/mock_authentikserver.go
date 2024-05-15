@@ -12,9 +12,10 @@ import (
 )
 
 const (
+	mockUserId       = "mockUserId"
 	mockTokenPath    = "/token"
 	mockUserInfoPath = "/userinfo"
-	mockUserInfo     = `{"sub":"test","name":"test","email":"test@gmail.com","email_verified":true}`
+	mockUserInfo     = `{"sub":"mockUserId","name":"test","email":"test@gmail.com","email_verified":true}`
 )
 
 func mockAuthenticServer() *httptest.Server {
