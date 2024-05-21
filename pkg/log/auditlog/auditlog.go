@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -26,9 +27,11 @@ const (
 )
 
 type logger struct {
+	enabled           bool
 	owningServiceName string
 	coverageLevel     *slog.LevelVar
 	logger            *slog.Logger
+	mu                sync.RWMutex
 }
 
 //// Entry builds up an audit log entry with the following fields
@@ -50,6 +53,7 @@ func InitLogger(owningServiceName string, coverageLevel string, logWriter io.Wri
 	// Initialize the Logger with the given coverage level
 	l := logger{
 		owningServiceName: owningServiceName,
+		enabled:           false,
 	}
 	coverageLevel = strings.ToUpper(coverageLevel)
 	l.SetCoverageLevel(coverageLevel)
@@ -83,6 +87,14 @@ func InitLogger(owningServiceName string, coverageLevel string, logWriter io.Wri
 	return &l
 }
 
+// SetEnabled sets the enabled status for the logger
+func (l *logger) SetEnabled(enabled bool) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	l.enabled = enabled
+}
+
 // SetCoverageLevel sets the coverage level for the logger
 func (l *logger) SetCoverageLevel(coverageLevel string) {
 	// Use BASE coverage level if the given coverage level is invalid
@@ -96,22 +108,29 @@ func (l *logger) SetCoverageLevel(coverageLevel string) {
 }
 
 // LogBase adds an audit log entry to the log writer with base coverage level
-func (l *logger) LogBase(severity Severity, actor string, action ActionType, description string, details any) {
+func (l *logger) LogBase(severity Severity, actor string, action ActionType, description string, details LogDetails) {
 	l.log(BaseCoverageLevel, severity, actor, action, description, details)
 }
 
 // LogAdvanced adds an audit log entry to the log writer with advanced coverage level
-func (l *logger) LogAdvanced(severity Severity, actor string, action ActionType, description string, details any) {
+func (l *logger) LogAdvanced(severity Severity, actor string, action ActionType, description string, details LogDetails) {
 	l.log(AdvancedCoverageLevel, severity, actor, action, description, details)
 }
 
 // LogFull adds an audit log entry to the log writer with full coverage level
-func (l *logger) LogFull(severity Severity, actor string, action ActionType, description string, details any) {
+func (l *logger) LogFull(severity Severity, actor string, action ActionType, description string, details LogDetails) {
 	l.log(FullCoverageLevel, severity, actor, action, description, details)
 }
 
 // log adds an audit log entry to the log writer with the given coverage level
-func (l *logger) log(coverageLevel slog.Level, severity Severity, actor string, action ActionType, description string, details any) {
+func (l *logger) log(coverageLevel slog.Level, severity Severity, actor string, action ActionType, description string, details LogDetails) {
+	l.mu.RLock()
+	logEnabled := l.enabled
+	l.mu.RUnlock()
+	if !logEnabled {
+		return
+	}
+
 	// Set severity to NORMAL if the given severity is invalid or empty
 	if severity != SeverityCritical && severity != SeverityNormal && severity != SeverityMinor {
 		severity = SeverityNormal
@@ -131,8 +150,8 @@ func (l *logger) log(coverageLevel slog.Level, severity Severity, actor string, 
 		slog.String(DescriptionKey, description),
 	}
 
-	// Set details to an empty string if it is nil
-	if details != nil && details != "" {
+	// Only add details if it is not empty
+	if details != nil {
 		attrs = append(attrs, slog.Any(DetailsKey, details))
 	}
 
