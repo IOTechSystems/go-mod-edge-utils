@@ -58,12 +58,12 @@ func TestMain(m *testing.M) {
 }
 
 func TestRequestAuth(t *testing.T) {
-	performRequestAuth(t, mockAuthentikProvider)
+	performRequestAuth(t, Authentik)
 }
 
 func TestCallbackWithCorrectState(t *testing.T) {
-	authenticator, state := performRequestAuth(t, mockAuthentikProvider)
-	rr := performCallback(t, state, authenticator, mockAuthentikProvider)
+	authenticator, state := performRequestAuth(t, Authentik)
+	rr := performCallback(t, state, authenticator, Authentik)
 
 	// Check if the response status code is http.StatusSeeOther (303)
 	if status := rr.Code; status != http.StatusSeeOther {
@@ -89,7 +89,7 @@ func TestCallbackWithCorrectState(t *testing.T) {
 
 func TestCallbackWithIncorrectState(t *testing.T) {
 	authenticator := newAuthentikAuthenticator()
-	rr := performCallback(t, "", authenticator, mockAuthentikProvider)
+	rr := performCallback(t, "", authenticator, Authentik)
 
 	// Check if the response status code is http.StatusUnauthorized (401)
 	if status := rr.Code; status != http.StatusUnauthorized {
@@ -111,8 +111,8 @@ func TestGetTokenByUserIDWithTokenNotFound(t *testing.T) {
 }
 
 func TestGetTokenByUserID(t *testing.T) {
-	authenticator, state := performRequestAuth(t, mockAuthentikProvider)
-	rr := performCallback(t, state, authenticator, mockAuthentikProvider)
+	authenticator, state := performRequestAuth(t, Authentik)
+	rr := performCallback(t, state, authenticator, Authentik)
 
 	// Check if the response status code is http.StatusSeeOther (303)
 	if status := rr.Code; status != http.StatusSeeOther {
@@ -126,19 +126,19 @@ func TestGetTokenByUserID(t *testing.T) {
 	assert.NotNil(t, token, "token should not be nil")
 }
 
-func performRequestAuth(t *testing.T, provider string) (Authenticator, string) {
+func performRequestAuth(t *testing.T, provider Provider) (Authenticator, string) {
 	var (
 		authenticator Authenticator
 		authPath      string
 	)
 	switch provider {
-	case mockAuthentikProvider:
+	case Authentik:
 		authenticator = newAuthentikAuthenticator()
 		authPath = mockAuthentikAuthPath
-	case mockGoogleProvider:
+	case Google:
 		authenticator = newGoogleAuthenticator()
 		authPath = mockGoogleAuthPath
-	case mockGithubProvider:
+	case GitHub:
 		authenticator = newGithubAuthenticator()
 		authPath = mockGithubAuthPath
 	default:
@@ -188,14 +188,14 @@ func performRequestAuth(t *testing.T, provider string) (Authenticator, string) {
 	return authenticator, stateParam
 }
 
-func performCallback(t *testing.T, state string, authenticator Authenticator, provider string) *httptest.ResponseRecorder {
+func performCallback(t *testing.T, state string, authenticator Authenticator, provider Provider) *httptest.ResponseRecorder {
 	if authenticator == nil {
 		switch provider {
-		case mockAuthentikProvider:
+		case Authentik:
 			authenticator = newAuthentikAuthenticator()
-		case mockGoogleProvider:
+		case Google:
 			authenticator = newGoogleAuthenticator()
-		case mockGithubProvider:
+		case GitHub:
 			authenticator = newGithubAuthenticator()
 		default:
 			t.Fatal("invalid provider")
@@ -226,20 +226,20 @@ func performCallback(t *testing.T, state string, authenticator Authenticator, pr
 	return rr
 }
 
-func mockHandleUserInfo(userInfo any, provider string) (token *jwt.TokenDetails, err errors.Error) {
+func mockHandleUserInfo(userInfo any, provider Provider) (token *jwt.TokenDetails, err errors.Error) {
 	switch provider {
-	case mockAuthentikProvider:
-		_, ok := userInfo.(AuthentikUserInfo)
+	case Authentik:
+		_, ok := userInfo.(*AuthentikUserInfo)
 		if !ok {
 			return nil, errors.NewBaseError(errors.KindServerError, "failed to cast user info to AuthentikUserInfo", nil, nil)
 		}
-	case mockGoogleProvider:
-		_, ok := userInfo.(GoogleUserInfo)
+	case Google:
+		_, ok := userInfo.(*GoogleUserInfo)
 		if !ok {
 			return nil, errors.NewBaseError(errors.KindServerError, "failed to cast user info to GoogleUserInfo", nil, nil)
 		}
-	case mockGithubProvider:
-		_, ok := userInfo.(GitHubUserInfo)
+	case GitHub:
+		_, ok := userInfo.(*GitHubUserInfo)
 		if !ok {
 			return nil, errors.NewBaseError(errors.KindServerError, "failed to cast user info to GitHubUserInfo", nil, nil)
 		}

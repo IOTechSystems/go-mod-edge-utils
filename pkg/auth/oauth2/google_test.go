@@ -32,12 +32,12 @@ func newGoogleAuthenticator() Authenticator {
 }
 
 func TestGoogleRequestAuth(t *testing.T) {
-	performRequestAuth(t, mockGoogleProvider)
+	performRequestAuth(t, Google)
 }
 
 func TestGoogleCallbackWithCorrectState(t *testing.T) {
-	authenticator, state := performRequestAuth(t, mockGoogleProvider)
-	rr := performCallback(t, state, authenticator, mockGoogleProvider)
+	authenticator, state := performRequestAuth(t, Google)
+	rr := performCallback(t, state, authenticator, Google)
 
 	// Check if the response status code is http.StatusSeeOther (303)
 	if status := rr.Code; status != http.StatusSeeOther {
@@ -63,7 +63,7 @@ func TestGoogleCallbackWithCorrectState(t *testing.T) {
 
 func TestGoogleCallbackWithIncorrectState(t *testing.T) {
 	authenticator := newGoogleAuthenticator()
-	rr := performCallback(t, "", authenticator, mockGoogleProvider)
+	rr := performCallback(t, "", authenticator, Google)
 
 	// Check if the response status code is http.StatusUnauthorized (401)
 	if status := rr.Code; status != http.StatusUnauthorized {
@@ -85,8 +85,8 @@ func TestGoogleGetTokenByUserIDWithTokenNotFound(t *testing.T) {
 }
 
 func TestGoogleGetTokenByUserID(t *testing.T) {
-	authenticator, state := performRequestAuth(t, mockGoogleProvider)
-	rr := performCallback(t, state, authenticator, mockGoogleProvider)
+	authenticator, state := performRequestAuth(t, Google)
+	rr := performCallback(t, state, authenticator, Google)
 
 	// Check if the response status code is http.StatusSeeOther (303)
 	if status := rr.Code; status != http.StatusSeeOther {

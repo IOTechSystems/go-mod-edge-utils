@@ -33,12 +33,12 @@ func newGithubAuthenticator() Authenticator {
 }
 
 func TestGithubRequestAuth(t *testing.T) {
-	performRequestAuth(t, mockGithubProvider)
+	performRequestAuth(t, GitHub)
 }
 
 func TestGithubCallbackWithCorrectState(t *testing.T) {
-	authenticator, state := performRequestAuth(t, mockGithubProvider)
-	rr := performCallback(t, state, authenticator, mockGithubProvider)
+	authenticator, state := performRequestAuth(t, GitHub)
+	rr := performCallback(t, state, authenticator, GitHub)
 
 	// Check if the response status code is http.StatusSeeOther (303)
 	if status := rr.Code; status != http.StatusSeeOther {
@@ -64,7 +64,7 @@ func TestGithubCallbackWithCorrectState(t *testing.T) {
 
 func TestGithubCallbackWithIncorrectState(t *testing.T) {
 	authenticator := newGithubAuthenticator()
-	rr := performCallback(t, "", authenticator, mockGithubProvider)
+	rr := performCallback(t, "", authenticator, GitHub)
 
 	// Check if the response status code is http.StatusUnauthorized (401)
 	if status := rr.Code; status != http.StatusUnauthorized {
@@ -86,8 +86,8 @@ func TestGithubGetTokenByUserIDWithTokenNotFound(t *testing.T) {
 }
 
 func TestGithubGetTokenByUserID(t *testing.T) {
-	authenticator, state := performRequestAuth(t, mockGithubProvider)
-	rr := performCallback(t, state, authenticator, mockGithubProvider)
+	authenticator, state := performRequestAuth(t, GitHub)
+	rr := performCallback(t, state, authenticator, GitHub)
 
 	// Check if the response status code is http.StatusSeeOther (303)
 	if status := rr.Code; status != http.StatusSeeOther {

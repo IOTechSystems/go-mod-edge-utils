@@ -22,21 +22,18 @@ const (
 	mockRedirectURL  = "http://localhost:8080" + mockCallbackPath
 	mockRedirectPath = "/"
 
-	mockAuthentikProvider = "authentik"
 	mockAuthentikAuthPath = "/authentik/auth"
 	// This is not potential hardcoded credentials
 	// nolint:gosec
 	mockAuthentikTokenPath    = "/authentik/token"
 	mockAuthentikUserInfoPath = "/authentik/userinfo"
 	mockAuthentikUserInfo     = `{"sub":"mockUserId","name":"test","email":"test@gmail.com","email_verified":true}`
-	mockGoogleProvider        = "google"
 	mockGoogleAuthPath        = "/google/auth"
 	// This is not potential hardcoded credentials
 	// nolint:gosec
 	mockGoogleTokenPath    = "/google/token"
 	mockGoogleUserInfoPath = "/google/userinfo"
 	mockGoogleUserInfo     = `{"id":"mockUserId","name":"test","email":"test@gmail.com","verified_email":true}`
-	mockGithubProvider     = "github"
 	mockGithubAuthPath     = "/github/auth"
 	// This is not potential hardcoded credentials
 	// nolint:gosec
