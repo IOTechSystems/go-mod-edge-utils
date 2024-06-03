@@ -24,41 +24,30 @@ var (
 	mockSeverURL string
 )
 
-const (
-	mockServiceName  = "testService"
-	mockClientID     = "clientID"
-	mockClientSecret = "clientSecret"
-	mockAuthCode     = "authCode"
-	mockCallbackPath = "/callback"
-	mockAuthPath     = "/auth"
-	mockRedirectURL  = "http://localhost:8080" + mockCallbackPath
-	mockRedirectPath = "/"
-)
-
-func getMockConfigs() Config {
+func getMockAuthentikConfigs() Config {
 	return Config{
 		GoOAuth2Config: &oauth2.Config{
 			ClientID:     mockClientID,
 			ClientSecret: mockClientSecret,
 			RedirectURL:  mockRedirectURL,
 			Endpoint: oauth2.Endpoint{
-				AuthURL:  mockSeverURL + mockAuthPath,
-				TokenURL: mockSeverURL + mockTokenPath,
+				AuthURL:  mockSeverURL + mockAuthentikAuthPath,
+				TokenURL: mockSeverURL + mockAuthentikTokenPath,
 			},
 		},
-		UserInfoURL:  mockSeverURL + mockUserInfoPath,
+		UserInfoURL:  mockSeverURL + mockAuthentikUserInfoPath,
 		RedirectPath: mockRedirectPath,
 	}
 }
 
 func newAuthentikAuthenticator() Authenticator {
 	logger := log.InitLogger(mockServiceName, log.InfoLog, nil)
-	configs := getMockConfigs()
+	configs := getMockAuthentikConfigs()
 	return NewAuthentikAuthenticator(configs, logger)
 }
 
 func TestMain(m *testing.M) {
-	testMockServer := mockAuthenticServer()
+	testMockServer := mockServer()
 	defer testMockServer.Close()
 
 	URL, _ := url.Parse(testMockServer.URL)
@@ -69,12 +58,12 @@ func TestMain(m *testing.M) {
 }
 
 func TestRequestAuth(t *testing.T) {
-	performRequestAuth(t)
+	performRequestAuth(t, Authentik)
 }
 
 func TestCallbackWithCorrectState(t *testing.T) {
-	authenticator, state := performRequestAuth(t)
-	rr := performCallback(t, state, authenticator)
+	authenticator, state := performRequestAuth(t, Authentik)
+	rr := performCallback(t, state, authenticator, Authentik)
 
 	// Check if the response status code is http.StatusSeeOther (303)
 	if status := rr.Code; status != http.StatusSeeOther {
@@ -100,7 +89,7 @@ func TestCallbackWithCorrectState(t *testing.T) {
 
 func TestCallbackWithIncorrectState(t *testing.T) {
 	authenticator := newAuthentikAuthenticator()
-	rr := performCallback(t, "", authenticator)
+	rr := performCallback(t, "", authenticator, Authentik)
 
 	// Check if the response status code is http.StatusUnauthorized (401)
 	if status := rr.Code; status != http.StatusUnauthorized {
@@ -122,8 +111,8 @@ func TestGetTokenByUserIDWithTokenNotFound(t *testing.T) {
 }
 
 func TestGetTokenByUserID(t *testing.T) {
-	authenticator, state := performRequestAuth(t)
-	rr := performCallback(t, state, authenticator)
+	authenticator, state := performRequestAuth(t, Authentik)
+	rr := performCallback(t, state, authenticator, Authentik)
 
 	// Check if the response status code is http.StatusSeeOther (303)
 	if status := rr.Code; status != http.StatusSeeOther {
@@ -137,10 +126,26 @@ func TestGetTokenByUserID(t *testing.T) {
 	assert.NotNil(t, token, "token should not be nil")
 }
 
-func performRequestAuth(t *testing.T) (Authenticator, string) {
-	authenticator := newAuthentikAuthenticator()
+func performRequestAuth(t *testing.T, provider Provider) (Authenticator, string) {
+	var (
+		authenticator Authenticator
+		authPath      string
+	)
+	switch provider {
+	case Authentik:
+		authenticator = newAuthentikAuthenticator()
+		authPath = mockAuthentikAuthPath
+	case Google:
+		authenticator = newGoogleAuthenticator()
+		authPath = mockGoogleAuthPath
+	case GitHub:
+		authenticator = newGithubAuthenticator()
+		authPath = mockGithubAuthPath
+	default:
+		t.Fatal("invalid provider")
+	}
 	// Create a testing HTTP request
-	req, err := http.NewRequest("GET", mockAuthPath, nil)
+	req, err := http.NewRequest("GET", authPath, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,7 +174,7 @@ func performRequestAuth(t *testing.T) (Authenticator, string) {
 	}
 
 	// Check if the domain, port, and path are correct
-	if "http://"+parsedURL.Host != mockSeverURL || parsedURL.Path != mockAuthPath {
+	if "http://"+parsedURL.Host != mockSeverURL || parsedURL.Path != authPath {
 		t.Errorf("handler returned unexpected location URL: got %v want %s://%s:%s%s", location, parsedURL.Scheme, parsedURL.Hostname(), parsedURL.Port(), parsedURL.Path)
 	}
 
@@ -183,9 +188,18 @@ func performRequestAuth(t *testing.T) (Authenticator, string) {
 	return authenticator, stateParam
 }
 
-func performCallback(t *testing.T, state string, authenticator Authenticator) *httptest.ResponseRecorder {
+func performCallback(t *testing.T, state string, authenticator Authenticator, provider Provider) *httptest.ResponseRecorder {
 	if authenticator == nil {
-		authenticator = newAuthentikAuthenticator()
+		switch provider {
+		case Authentik:
+			authenticator = newAuthentikAuthenticator()
+		case Google:
+			authenticator = newGoogleAuthenticator()
+		case GitHub:
+			authenticator = newGithubAuthenticator()
+		default:
+			t.Fatal("invalid provider")
+		}
 	}
 
 	// Create a testing HTTP request
@@ -206,14 +220,29 @@ func performCallback(t *testing.T, state string, authenticator Authenticator) *h
 	rr := httptest.NewRecorder()
 
 	// Serve the Callback HTTP request
-	authenticator.Callback(mockHandleUserInfo).ServeHTTP(rr, req)
+	authenticator.Callback(func(userInfo any) (token *jwt.TokenDetails, err errors.Error) {
+		return mockHandleUserInfo(userInfo, provider)
+	}).ServeHTTP(rr, req)
 	return rr
 }
 
-func mockHandleUserInfo(userInfo any) (token *jwt.TokenDetails, err errors.Error) {
-	_, ok := userInfo.(AuthentikUserInfo)
-	if !ok {
-		return nil, errors.NewBaseError(errors.KindServerError, "failed to cast user info to AuthentikUserInfo", nil, nil)
+func mockHandleUserInfo(userInfo any, provider Provider) (token *jwt.TokenDetails, err errors.Error) {
+	switch provider {
+	case Authentik:
+		_, ok := userInfo.(*AuthentikUserInfo)
+		if !ok {
+			return nil, errors.NewBaseError(errors.KindServerError, "failed to cast user info to AuthentikUserInfo", nil, nil)
+		}
+	case Google:
+		_, ok := userInfo.(*GoogleUserInfo)
+		if !ok {
+			return nil, errors.NewBaseError(errors.KindServerError, "failed to cast user info to GoogleUserInfo", nil, nil)
+		}
+	case GitHub:
+		_, ok := userInfo.(*GitHubUserInfo)
+		if !ok {
+			return nil, errors.NewBaseError(errors.KindServerError, "failed to cast user info to GitHubUserInfo", nil, nil)
+		}
 	}
 
 	fakeToken := &jwt.TokenDetails{

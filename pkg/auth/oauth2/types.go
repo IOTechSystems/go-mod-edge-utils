@@ -11,3 +11,11 @@ type Config struct {
 	UserInfoURL    string
 	RedirectPath   string // RedirectPath is the path that the user will be redirected to after login
 }
+
+type Provider string
+
+const (
+	Authentik Provider = "authentik"
+	Google    Provider = "google"
+	GitHub    Provider = "github"
+)
