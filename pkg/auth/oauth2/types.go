@@ -16,6 +16,6 @@ type Provider string
 
 const (
 	Authentik Provider = "authentik"
-	Google    Provider = "Google"
-	GitHub    Provider = "GitHub"
+	Google    Provider = "google"
+	GitHub    Provider = "github"
 )
