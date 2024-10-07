@@ -115,3 +115,12 @@ type InsecureSecretsInfo struct {
 type BootstrapConfiguration struct {
 	Service *ServiceInfo
 }
+
+// SecretsSetupInfo encapsulates the configuration used to auto-generate TLS certificates
+// This is not a general config for all services. Only services that require auto-generated TLS certificates need this config.
+type SecretsSetupInfo struct {
+	// CertConfig is used for auto-generating the TLS certificates when user didn't specify the TLS_KEY_PATH and TLS_CERT_PATH
+	CertConfig string
+	// CertOutputDir indicates the folder for auto-generated TLS certificates
+	CertOutputDir string
+}
