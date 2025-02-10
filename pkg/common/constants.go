@@ -1,4 +1,4 @@
-// Copyright (C) 2023 IOTech Ltd
+// Copyright (C) 2023-2025 IOTech Ltd
 
 package common
 
@@ -17,4 +17,18 @@ const (
 	ApiPingRoute    = ApiBase + "/ping"
 	ApiVersionRoute = ApiBase + "/version"
 	ApiSecretRoute  = ApiBase + "/secret"
+)
+
+// constants relate to the url query parameters
+const (
+	CommaSeparator = ","
+	End            = "end"
+	Limit          = "limit"
+	Labels         = "labels"
+	Offset         = "offset"
+	Since          = "since"
+	Start          = "start"
+	Tail           = "tail"
+	Timestamps     = "timestamps"
+	Until          = "until"
 )
