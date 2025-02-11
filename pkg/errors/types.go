@@ -1,4 +1,4 @@
-// Copyright (C) 2023 IOTech Ltd
+// Copyright (C) 2023-2025 IOTech Ltd
 
 package errors
 
@@ -29,6 +29,7 @@ const (
 	KindAuthenticationFailure ErrKind = "AuthenticationFailure"
 	KindPayloadDecodeFailure  ErrKind = "PayloadDecodeFailure"
 	KindTimeout               ErrKind = "Timeout"
+	KindForbidden             ErrKind = "Forbidden"
 )
 
 // ErrDetails is a detailed mapping to set extra information with the error
@@ -44,8 +45,4 @@ type Error interface {
 	Message() string
 	// DebugMessages returns a detailed string for debug purpose.
 	DebugMessages() string
-	// Kind returns the error kind of this edge error.
-	Kind() ErrKind
-	// Details returns the detailed mapping associated with this edge error.
-	Details() ErrDetails
 }
