@@ -1,4 +1,4 @@
-// Copyright (C) 2023 IOTech Ltd
+// Copyright (C) 2023-2025 IOTech Ltd
 
 package errors
 
@@ -63,16 +63,6 @@ func (be BaseError) DebugMessages() string {
 	}
 }
 
-// Kind returns the error kind of this BaseError.
-func (be BaseError) Kind() ErrKind {
-	return be.kind
-}
-
-// Details returns the detail maps of this BaseError.
-func (be BaseError) Details() ErrDetails {
-	return be.details
-}
-
 // AddDetail adds a detail associated with key for this BaseError.
 func (be BaseError) AddDetail(key string, detail any) {
 	if be.details == nil {
@@ -116,6 +106,16 @@ func Kind(err error) ErrKind {
 	return Kind(e.wrappedErr)
 }
 
+// Details extracts error details from the given error.
+// If the error is not of type BaseError, it returns nil.
+func Details(err error) ErrDetails {
+	var e BaseError
+	if !errors.As(err, &e) {
+		return nil
+	}
+	return e.details
+}
+
 // NewBaseError creates a new BaseError with the information provided
 func NewBaseError(kind ErrKind, errMsg string, err error, detail ErrDetails) BaseError {
 	return BaseError{
@@ -129,7 +129,7 @@ func NewBaseError(kind ErrKind, errMsg string, err error, detail ErrDetails) Bas
 
 // BaseErrorWrapper creates a new BaseError by wrapping an existing Error
 func BaseErrorWrapper(err Error) BaseError {
-	return NewBaseError(err.Kind(), "", err, err.Details())
+	return NewBaseError(Kind(err), "", err, Details(err))
 }
 
 // ToBaseError creates a new BaseError with Kind found from err
@@ -141,7 +141,7 @@ func ToBaseError(err error) BaseError {
 
 	// If the error is Error type, extract and preserve the details
 	if errors.As(err, &e) {
-		details = e.Details()
+		details = Details(e)
 	}
 
 	kind := Kind(err)

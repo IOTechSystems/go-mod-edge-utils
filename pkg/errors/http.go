@@ -1,4 +1,4 @@
-// Copyright (C) 2023 IOTech Ltd
+// Copyright (C) 2023-2025 IOTech Ltd
 
 package errors
 
@@ -91,6 +91,8 @@ func KindMapping(code int) ErrKind {
 		return KindRangeNotSatisfiable
 	case http.StatusUnauthorized:
 		return KindUnauthorized
+	case http.StatusForbidden:
+		return KindForbidden
 	default:
 		return KindUnknown
 	}
