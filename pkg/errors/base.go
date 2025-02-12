@@ -63,6 +63,17 @@ func (be BaseError) DebugMessages() string {
 	}
 }
 
+// Code always returns 1 because BaseError is just a generic error that does not contain an error code.
+// To get a specific error code, wrap BaseError using a more detailed error type, such as NewHTTPError.
+func (be BaseError) Code() int {
+	return 1
+}
+
+// Kind returns the error kind of this BaseError.
+func (be BaseError) Kind() string {
+	return string(be.kind)
+}
+
 // AddDetail adds a detail associated with key for this BaseError.
 func (be BaseError) AddDetail(key string, detail any) {
 	if be.details == nil {

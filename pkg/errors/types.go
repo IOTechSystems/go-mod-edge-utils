@@ -45,4 +45,8 @@ type Error interface {
 	Message() string
 	// DebugMessages returns a detailed string for debug purpose.
 	DebugMessages() string
+	// Code returns the error code associated with the error.
+	Code() int
+	// Kind returns the error kind associated with the error.
+	Kind() string
 }
