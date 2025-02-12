@@ -7,6 +7,7 @@ package rest
 import (
 	"context"
 	"encoding/json"
+	goErr "errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -61,15 +62,27 @@ func NewBaseResponse(requestId string, message string, statusCode int) BaseRespo
 // WriteErrorResponse writes Http header, encode error response with JSON format and writes to the HTTP response.
 func WriteErrorResponse(w *echo.Response, ctx context.Context, lc log.Logger, err errors.Error, requestId string) error {
 	correlationId := handlers.FromContext(ctx)
-	if errors.Kind(err) == errors.KindServiceUnavailable {
+	if err.Kind() == string(errors.KindServiceUnavailable) {
 		lc.Warn(err.Message())
-	} else if errors.Kind(err) != errors.KindEntityDoesNotExist {
+	} else if err.Kind() != string(errors.KindEntityDoesNotExist) {
 		lc.Error(err.Error(), common.CorrelationID, correlationId)
 	}
+
 	lc.Debug(err.DebugMessages(), common.CorrelationID, correlationId)
-	httpErr := errors.NewHTTPError(err)
-	errResponses := NewBaseResponse(requestId, err.Error(), httpErr.Code())
-	WriteDefaultHttpHeader(w, ctx, httpErr.Code())
+
+	var (
+		e    errors.BaseError
+		code int
+	)
+	if goErr.As(err, &e) {
+		httpErr := errors.NewHTTPError(e)
+		code = httpErr.Code()
+	} else {
+		code = err.Code()
+	}
+
+	errResponses := NewBaseResponse(requestId, err.Error(), code)
+	WriteDefaultHttpHeader(w, ctx, code)
 	return EncodeAndWriteResponse(errResponses, w, lc)
 }
 

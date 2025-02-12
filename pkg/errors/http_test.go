@@ -29,7 +29,7 @@ func TestHttpError(t *testing.T) {
 			expectedCode := codeMapping(tt.kind)
 			assert.Equal(t, httpErr.Code(), expectedCode, fmt.Sprintf("Retrieved http status code %v is not equal to %v.", httpErr.Code(), expectedCode))
 			assert.Contains(t, httpErr.Message(), strconv.Itoa(expectedCode), fmt.Sprintf("Retrieved http error message %v doesn't contain %v.", httpErr.Message(), expectedCode))
-			assert.Equal(t, Kind(httpErr), tt.kind, fmt.Sprintf("Retrieved http error kind %v is not equal to %v.", Kind(httpErr), tt.kind))
+			assert.Equal(t, httpErr.Kind(), string(tt.kind), fmt.Sprintf("Retrieved http error kind %v is not equal to %v.", httpErr.Kind(), tt.kind))
 		})
 	}
 }
