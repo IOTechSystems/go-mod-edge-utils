@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 
@@ -129,12 +130,12 @@ func ParseGetAllObjectsRequestQueryString(r *http.Request, maxOffSet, maxResultC
 	return offset, limit, labels, err
 }
 
-func ParseStartEndRequestQueryString(c echo.Context) (start, end int64, err errors.Error) {
-	start, parseErr := strconv.ParseInt(c.Param(common.Start), 10, 64)
+func ParseStartEndRequestQueryString(r *http.Request) (start, end int64, err errors.Error) {
+	start, parseErr := parseQueryStringToInt64(r, common.Start, 0)
 	if parseErr != nil {
 		err = errors.NewBaseError(errors.KindContractInvalid, "unable to convert 'start' value to int", parseErr, nil)
 	}
-	end, parseErr = strconv.ParseInt(c.Param(common.End), 10, 64)
+	end, parseErr = parseQueryStringToInt64(r, common.End, time.Now().UnixMilli())
 	if parseErr != nil {
 		err = errors.NewBaseError(errors.KindContractInvalid, "unable to convert 'end' value to int", parseErr, nil)
 	}
@@ -200,6 +201,20 @@ func parseQueryStringToInt(r *http.Request, queryStringKey string, defaultValue 
 		}
 	}
 
+	return result, nil
+}
+
+func parseQueryStringToInt64(r *http.Request, queryStringKey string, defaultValue int64) (int64, errors.Error) {
+	var result = defaultValue
+	var parsingErr error
+
+	value := r.URL.Query().Get(queryStringKey)
+	if value != "" {
+		result, parsingErr = strconv.ParseInt(strings.TrimSpace(value), 10, 64)
+		if parsingErr != nil {
+			return 0, errors.NewBaseError(errors.KindContractInvalid, fmt.Sprintf("failed to parse querystring %s's value %s into int64. Error:%s", queryStringKey, value, parsingErr.Error()), nil, nil)
+		}
+	}
 	return result, nil
 }
 
