@@ -50,9 +50,13 @@ func NewVersionable() Versionable {
 	return Versionable{ApiVersion: common.ApiVersion}
 }
 
-func NewBaseResponse(requestId string, message string, statusCode int) BaseResponse {
+func NewBaseResponse(apiVersion, requestId, message string, statusCode int) BaseResponse {
+	v := Versionable{ApiVersion: apiVersion}
+	if v.ApiVersion == "" {
+		v = NewVersionable()
+	}
 	return BaseResponse{
-		Versionable: NewVersionable(),
+		Versionable: v,
 		RequestId:   requestId,
 		Message:     message,
 		StatusCode:  statusCode,
@@ -60,7 +64,7 @@ func NewBaseResponse(requestId string, message string, statusCode int) BaseRespo
 }
 
 // WriteErrorResponse writes Http header, encode error response with JSON format and writes to the HTTP response.
-func WriteErrorResponse(w *echo.Response, ctx context.Context, lc log.Logger, err errors.Error, requestId string) error {
+func WriteErrorResponse(w *echo.Response, ctx context.Context, lc log.Logger, err errors.Error, apiVersion, requestId string) error {
 	correlationId := handlers.FromContext(ctx)
 	if err.Kind() == string(errors.KindServiceUnavailable) {
 		lc.Warn(err.Message())
@@ -81,7 +85,7 @@ func WriteErrorResponse(w *echo.Response, ctx context.Context, lc log.Logger, er
 		code = err.Code()
 	}
 
-	errResponses := NewBaseResponse(requestId, err.Error(), code)
+	errResponses := NewBaseResponse(apiVersion, requestId, err.Error(), code)
 	WriteDefaultHttpHeader(w, ctx, code)
 	return EncodeAndWriteResponse(errResponses, w, lc)
 }
