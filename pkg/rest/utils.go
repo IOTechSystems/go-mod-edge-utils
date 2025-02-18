@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"gopkg.in/yaml.v3"
 
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/handlers"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/common"
@@ -95,6 +96,20 @@ func EncodeAndWriteResponse(i any, w *echo.Response, lc log.Logger) error {
 	w.Header().Set(common.ContentType, common.ContentTypeJSON)
 
 	enc := json.NewEncoder(w)
+	err := enc.Encode(i)
+
+	// Problems encoding
+	if err != nil {
+		lc.Error("Error encoding the data: " + err.Error())
+		// set Response.Committed to false in order to rewrite the status code
+		w.Committed = false
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+	return nil
+}
+
+func EncodeAndWriteYamlResponse(i interface{}, w *echo.Response, lc log.Logger) error {
+	enc := yaml.NewEncoder(w)
 	err := enc.Encode(i)
 
 	// Problems encoding
