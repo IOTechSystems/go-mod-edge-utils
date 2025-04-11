@@ -19,7 +19,6 @@ package models
 
 import (
 	"encoding/json"
-
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/errors"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/validator"
 )

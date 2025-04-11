@@ -1,6 +1,6 @@
 /*******************************************************************************
  * Copyright (C) 2023 Intel Corp.
- * Copyright (C) 2023 IOTech Ltd
+ * Copyright (C) 2023-2025 IOTech Ltd
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -20,12 +20,12 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
-
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/common"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/errors"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/models"
+
+	"github.com/labstack/echo/v4"
 )
 
 // ConvertFromMap uses json to marshal and unmarshal a map into a target type

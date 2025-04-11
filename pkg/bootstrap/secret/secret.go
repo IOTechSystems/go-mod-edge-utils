@@ -1,7 +1,7 @@
 /********************************************************************************
  *  Copyright 2019 Dell Inc.
  *  Copyright 2022 Intel Corp.
- *  Copyright 2023 IOTech Ltd.
+ *  Copyright 2023-2025 IOTech Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -18,18 +18,34 @@ package secret
 
 import (
 	"context"
+	"fmt"
+	"path"
+	"strings"
+	"time"
 
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/config"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/container"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/environment"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/interfaces"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/secret/clients"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/secret/token/authtokenloader"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/secret/token/fileioperformer"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/secret/token/runtimetokenprovider"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/startup"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/di"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets/client"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets/types"
+
+	gometrics "github.com/rcrowley/go-metrics"
 )
 
 // secret service Metric Names
 const (
-	secretsRequestedMetricName = "SecuritySecretsRequested"
-	secretsStoredMetricName    = "SecuritySecretsStored"
+	secretsRequestedMetricName             = "SecuritySecretsRequested"
+	secretsStoredMetricName                = "SecuritySecretsStored"
+	securityRuntimeSecretTokenDurationName = "SecurityRuntimeSecretTokenDuration"
+	securityGetSecretDurationName          = "SecurityGetSecretDuration"
 )
 
 // NewSecretProvider creates a new fully initialized the Secret Provider.
@@ -47,7 +63,108 @@ func NewSecretProvider(
 	switch IsSecurityEnabled() {
 	case true:
 		// attempt to create a new Secure client only if security is enabled.
-		logger.Error("Secure client and authentication token are not implemented")
+		var err error
+
+		logger.Info("Creating SecretClient")
+
+		secretStoreConfig, err := BuildSecretStoreConfig(serviceKey, envVars, logger)
+		if err != nil {
+			return nil, err
+		}
+
+		for startupTimer.HasNotElapsed() {
+			var secretConfig types.SecretConfig
+
+			logger.Info("Reading secret store configuration and authentication token")
+
+			tokenLoader := container.AuthTokenLoaderFrom(dic.Get)
+			if tokenLoader == nil {
+				tokenLoader = authtokenloader.NewAuthTokenLoader(fileioperformer.NewDefaultFileIoPerformer())
+			}
+
+			runtimeTokenLoader := container.RuntimeTokenProviderFrom(dic.Get)
+			if runtimeTokenLoader == nil {
+				runtimeTokenLoader = runtimetokenprovider.NewRuntimeTokenProvider(ctx, logger,
+					secretStoreConfig.RuntimeTokenProvider)
+			}
+
+			// We need to create securityRuntimeSecretTokenDuration here because we want to measure the time taken
+			// to get the secret config, but the secureProvider instance is created after this step.
+			securityRuntimeSecretTokenDuration := gometrics.NewTimer()
+			secretConfig, err = getSecretConfig(secretStoreConfig, tokenLoader, runtimeTokenLoader, serviceKey, logger, securityRuntimeSecretTokenDuration)
+			if err == nil {
+				secureProvider := NewSecureProvider(ctx, secretStoreConfig, logger, tokenLoader, runtimeTokenLoader, serviceKey)
+				secureProvider.securityRuntimeSecretTokenDuration = securityRuntimeSecretTokenDuration
+				var secretClient client.SecretClient
+
+				logger.Info("Attempting to create secret client")
+
+				tokenCallbackFunc := secureProvider.DefaultTokenExpiredCallback
+				if secretConfig.RuntimeTokenProvider.Enabled {
+					tokenCallbackFunc = secureProvider.RuntimeTokenExpiredCallback
+				}
+
+				secretClient, err = client.NewSecretsClient(ctx, secretConfig, logger, tokenCallbackFunc)
+				if err == nil {
+					secureProvider.SetClient(secretClient)
+					provider = secureProvider
+					logger.Info("Created SecretClient")
+
+					logger.Debugf("SecretsFile is '%s'", secretConfig.SecretsFile)
+
+					if len(strings.TrimSpace(secretConfig.SecretsFile)) == 0 {
+						logger.Infof("SecretsFile not set, skipping seeding of service secrets.")
+						break
+					}
+
+					provider = secureProvider
+					logger.Info("Created SecretClient")
+
+					err = secureProvider.LoadServiceSecrets(secretStoreConfig)
+					if err != nil {
+						return nil, err
+					}
+					break
+				} else if strings.Contains(err.Error(), AccessTokenAuthError) && !secretConfig.RuntimeTokenProvider.Enabled {
+					logger.Warnf("token expired, invoking secret-store-setup regen token API ........")
+
+					clientCollection, err := BuildSecretStoreSetupClientConfig(envVars, logger)
+					if err != nil {
+						return nil, err
+					}
+
+					clientConfigs := *clientCollection
+					ssSetupClient, ok := clientConfigs[config.SecuritySecretStoreSetupServiceKey]
+					if !ok {
+						return nil, fmt.Errorf("failed to obtain %s client from config", config.SecuritySecretStoreSetupServiceKey)
+					}
+					baseUrl := ssSetupClient.Url()
+
+					entityId, err := tokenLoader.ReadEntityId(secretStoreConfig.TokenFile)
+					if err != nil {
+						return nil, err
+					}
+
+					// Use InsecureProvider here since the client token has been expired and cannot be used to obtain the JWT
+					secretProvider := NewInsecureProvider(configuration, logger, dic)
+					jwtProvider := NewJWTSecretProvider(secretProvider)
+					httpClient := clients.NewSecretStoreTokenClient(baseUrl, jwtProvider)
+					_, err = httpClient.RegenToken(ctx, entityId)
+					if err != nil {
+						return nil, err
+					}
+
+					logger.Infof("token file re-generated, trying to create the secret client again later")
+				}
+			}
+
+			logger.Warn(fmt.Sprintf("Retryable failure while creating SecretClient: %s", err.Error()))
+			startupTimer.SleepForInterval()
+		}
+
+		if err != nil {
+			return nil, fmt.Errorf("unable to create SecretClient: %s", err.Error())
+		}
 	case false:
 		provider = NewInsecureProvider(configuration, logger, dic) // return 501
 	}
@@ -64,4 +181,104 @@ func NewSecretProvider(
 	})
 
 	return provider, nil
+}
+
+// BuildSecretStoreConfig is public helper function that builds the SecretStore configuration
+// from default values and  environment override.
+func BuildSecretStoreConfig(serviceKey string, envVars *environment.Variables, lc log.Logger) (*config.SecretStoreInfo, error) {
+	configWrapper := struct {
+		SecretStore config.SecretStoreInfo
+	}{
+		SecretStore: config.NewSecretStoreInfo(serviceKey),
+	}
+
+	count, err := envVars.OverrideConfiguration(&configWrapper)
+	if err != nil {
+		return nil, fmt.Errorf("failed to override SecretStore information: %v", err)
+	}
+
+	lc.Infof("SecretStore information created with %d overrides applied", count)
+	return &configWrapper.SecretStore, nil
+}
+
+// getSecretConfig creates a SecretConfig based on the SecretStoreInfo configuration properties.
+// If a token file is present it will override the Authentication.AuthToken value.
+func getSecretConfig(secretStoreInfo *config.SecretStoreInfo,
+	tokenLoader authtokenloader.AuthTokenLoader,
+	runtimeTokenLoader runtimetokenprovider.RuntimeTokenProvider,
+	serviceKey string,
+	lc log.Logger,
+	securityRuntimeSecretTokenDuration gometrics.Timer) (types.SecretConfig, error) {
+	secretConfig := types.SecretConfig{
+		Type:                 secretStoreInfo.Type, // Type of SecretStore implementation, i.e. OpenBao
+		Host:                 secretStoreInfo.Host,
+		Port:                 secretStoreInfo.Port,
+		BasePath:             addEdgeXSecretNamePrefix(secretStoreInfo.StoreName),
+		SecretsFile:          secretStoreInfo.SecretsFile,
+		Protocol:             secretStoreInfo.Protocol,
+		Namespace:            secretStoreInfo.Namespace,
+		RootCaCertPath:       secretStoreInfo.RootCaCertPath,
+		ServerName:           secretStoreInfo.ServerName,
+		Authentication:       secretStoreInfo.Authentication,
+		RuntimeTokenProvider: secretStoreInfo.RuntimeTokenProvider,
+	}
+
+	// maybe insecure mode
+	// if both configs of token file and runtime token provider are empty or disabled
+	// then we treat that as insecure mode
+	if !IsSecurityEnabled() || (secretStoreInfo.TokenFile == "" && !secretConfig.RuntimeTokenProvider.Enabled) {
+		lc.Info("insecure mode")
+		return secretConfig, nil
+	}
+
+	// based on whether token provider config is configured or not, we will obtain token in different way
+	var token string
+	var err error
+	if secretConfig.RuntimeTokenProvider.Enabled {
+		lc.Info("runtime token provider enabled")
+		// call spiffe token provider to get token on the fly
+		started := time.Now()
+		token, err = runtimeTokenLoader.GetRawToken(serviceKey)
+		securityRuntimeSecretTokenDuration.UpdateSince(started)
+	} else {
+		lc.Info("load token from file")
+		// else obtain the token from TokenFile
+		token, err = tokenLoader.Load(secretStoreInfo.TokenFile)
+	}
+
+	if err != nil {
+		return secretConfig, err
+	}
+
+	secretConfig.Authentication.AuthToken = token
+	return secretConfig, nil
+}
+
+func addEdgeXSecretNamePrefix(secretName string) string {
+	trimmedSecretName := strings.TrimSpace(secretName)
+
+	// in this case, treat it as no secret name prefix
+	if len(trimmedSecretName) == 0 {
+		return ""
+	}
+
+	return "/" + path.Join("v1", "secret", "edgex", trimmedSecretName)
+}
+
+// BuildSecretStoreSetupClientConfig is public helper function that builds the ClientsCollection configuration
+// from default values and environment override.
+func BuildSecretStoreSetupClientConfig(envVars *environment.Variables, lc log.Logger) (*config.ClientsCollection, error) {
+	configWrapper := struct {
+		Clients *config.ClientsCollection
+	}{
+		Clients: config.NewSecretStoreSetupClientInfo(),
+	}
+
+	count, err := envVars.OverrideConfiguration(&configWrapper)
+	if err != nil {
+		return nil, fmt.Errorf("failed to override SecretStore information: %v", err)
+	}
+
+	lc.Infof("SecretStoreSetup client information created with %d overrides applied", count)
+	return configWrapper.Clients, nil
 }

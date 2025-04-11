@@ -1,7 +1,7 @@
 /*******************************************************************************
  * Copyright 2018 Dell Inc.
  * Copyright 2023 Intel Corporation
- * Copyright 2021-2023 IOTech Ltd.
+ * Copyright 2021-2025 IOTech Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -16,7 +16,20 @@
 
 package config
 
-import "github.com/IOTechSystems/go-mod-edge-utils/pkg/mqtt5/models"
+import (
+	"fmt"
+
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/mqtt5/models"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets/client"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets/types"
+)
+
+const (
+	ServiceTypeApp = "app-service"
+	//TOOD: add security-service to use in place of useSecretProvider
+
+	SecuritySecretStoreSetupServiceKey = "security-secretstore-setup"
+)
 
 const (
 	Vault = "vault"
@@ -86,7 +99,7 @@ type SecretStoreInfo struct {
 	Namespace      string
 	RootCaCertPath string
 	ServerName     string
-	Authentication AuthenticationInfo
+	Authentication types.AuthenticationInfo
 	// TokenFile provides a location to a token file.
 	TokenFile string
 	// SecretsFile is optional Path to JSON file containing secrets to seed into service's SecretStore
@@ -94,12 +107,8 @@ type SecretStoreInfo struct {
 	// DisableScrubSecretsFile specifies to not scrub secrets file after importing. Service will fail start-up if
 	// not disabled and file can not be written.
 	DisableScrubSecretsFile bool
-}
-
-// AuthenticationInfo contains authentication information to be used when communicating with an HTTP based provider
-type AuthenticationInfo struct {
-	AuthType  string
-	AuthToken string
+	// RuntimeTokenProvider is optional if not using delayed start from spiffe-token provider
+	RuntimeTokenProvider types.RuntimeTokenProviderInfo
 }
 
 // InsecureSecrets is used to hold the secrets stored in the configuration
@@ -123,4 +132,66 @@ type SecretsSetupInfo struct {
 	CertConfig string
 	// CertOutputDir indicates the folder for auto-generated TLS certificates
 	CertOutputDir string
+}
+
+// ClientsCollection is a collection of Client information for communicating to dependent clients.
+type ClientsCollection map[string]*ClientInfo
+
+// ClientInfo provides the host and port of another service in the eco-system.
+type ClientInfo struct {
+	// Host is the hostname or IP address of a service.
+	Host string
+	// Port defines the port on which to access a given service
+	Port int
+	// Protocol indicates the protocol to use when accessing a given service
+	Protocol string
+	// UseMessageBus indicates weather to use Messaging version of client
+	UseMessageBus bool
+	// SecurityOptions is a key/value map, used for configuring clients. Currently used for zero trust but
+	// could be for other options additional security related configuration
+	SecurityOptions map[string]string
+}
+
+func (c ClientInfo) Url() string {
+	url := fmt.Sprintf("%s://%s:%v", c.Protocol, c.Host, c.Port)
+	return url
+}
+
+func NewSecretStoreSetupClientInfo() *ClientsCollection {
+	secretStoreStepClient := ClientsCollection{
+		SecuritySecretStoreSetupServiceKey: &ClientInfo{
+			Host:     "localhost",
+			Port:     59843,
+			Protocol: "http",
+		}}
+	return &secretStoreStepClient
+}
+
+func NewSecretStoreInfo(serviceKey string) SecretStoreInfo {
+	return SecretStoreInfo{
+		Type:                    client.DefaultSecretStore,
+		Protocol:                "http",
+		Host:                    "localhost",
+		Port:                    8200,
+		StoreName:               serviceKey,
+		TokenFile:               fmt.Sprintf("/tmp/edgex/secrets/%s/secrets-token.json", serviceKey),
+		DisableScrubSecretsFile: false,
+		Namespace:               "",
+		RootCaCertPath:          "",
+		ServerName:              "",
+		SecretsFile:             "",
+		Authentication: types.AuthenticationInfo{
+			AuthType:  "X-Vault-Token",
+			AuthToken: "",
+		},
+		RuntimeTokenProvider: types.RuntimeTokenProviderInfo{
+			Enabled:         false,
+			Protocol:        "https",
+			Host:            "localhost",
+			Port:            59841,
+			TrustDomain:     "edgexfoundry.org",
+			EndpointSocket:  "/tmp/edgex/secrets/spiffe/public/api.sock",
+			RequiredSecrets: "redisdb",
+		},
+	}
 }

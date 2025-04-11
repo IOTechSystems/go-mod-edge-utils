@@ -1,6 +1,6 @@
 /*******************************************************************************
  * Copyright 2020-2023 Intel Corporation
- * Copyright 2023 IOTech Ltd.
+ * Copyright 2023-2025 IOTech Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -18,14 +18,15 @@ package secret
 import (
 	"errors"
 	"fmt"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/interfaces"
+	"net/http"
 	"strings"
 	"time"
 
-	gometrics "github.com/rcrowley/go-metrics"
-
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/interfaces"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/di"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
+
+	gometrics "github.com/rcrowley/go-metrics"
 )
 
 // InsecureProvider implements the SecretProvider interface for insecure secrets
@@ -221,4 +222,8 @@ func (p *InsecureProvider) GetSelfJWT() (string, error) {
 // IsJWTValid evaluates a given JWT and returns a true/false if the JWT is valid (i.e. belongs to us and current) or not
 func (p *InsecureProvider) IsJWTValid(jwt string) (bool, error) {
 	return true, nil
+}
+
+func (p *InsecureProvider) HttpTransport() http.RoundTripper {
+	return http.DefaultTransport
 }

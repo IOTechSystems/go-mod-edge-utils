@@ -1,6 +1,6 @@
 /*******************************************************************************
  * Copyright 2020 Intel Inc.
- * Copyright 2023 IOTech Ltd.
+ * Copyright 2023-2025 IOTech Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -23,6 +23,8 @@ import (
 )
 
 const (
+	EnvSecretStore = "EDGEX_SECURITY_SECRET_STORE"
+
 	// WildcardName is a special secret name that can be used to register a secret callback for any secret.
 	WildcardName = "*"
 

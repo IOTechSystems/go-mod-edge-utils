@@ -9,14 +9,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/models"
-	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
 	"net/http"
 	"time"
 
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/common"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/models"
+
+	"github.com/google/uuid"
+	"github.com/labstack/echo/v4"
 )
 
 func ManageHeader(next echo.HandlerFunc) echo.HandlerFunc {
