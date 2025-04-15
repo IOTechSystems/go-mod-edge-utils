@@ -19,10 +19,6 @@ package secret
 import (
 	"context"
 	"fmt"
-	"path"
-	"strings"
-	"time"
-
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/config"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/container"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/environment"
@@ -30,12 +26,13 @@ import (
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/secret/clients"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/secret/token/authtokenloader"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/secret/token/fileioperformer"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/secret/token/runtimetokenprovider"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/startup"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/di"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets/client"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets/types"
+	"path"
+	"strings"
 
 	gometrics "github.com/rcrowley/go-metrics"
 )
@@ -82,27 +79,18 @@ func NewSecretProvider(
 				tokenLoader = authtokenloader.NewAuthTokenLoader(fileioperformer.NewDefaultFileIoPerformer())
 			}
 
-			runtimeTokenLoader := container.RuntimeTokenProviderFrom(dic.Get)
-			if runtimeTokenLoader == nil {
-				runtimeTokenLoader = runtimetokenprovider.NewRuntimeTokenProvider(ctx, logger,
-					secretStoreConfig.RuntimeTokenProvider)
-			}
-
 			// We need to create securityRuntimeSecretTokenDuration here because we want to measure the time taken
 			// to get the secret config, but the secureProvider instance is created after this step.
 			securityRuntimeSecretTokenDuration := gometrics.NewTimer()
-			secretConfig, err = getSecretConfig(secretStoreConfig, tokenLoader, runtimeTokenLoader, serviceKey, logger, securityRuntimeSecretTokenDuration)
+			secretConfig, err = getSecretConfig(secretStoreConfig, tokenLoader, serviceKey, logger)
 			if err == nil {
-				secureProvider := NewSecureProvider(ctx, secretStoreConfig, logger, tokenLoader, runtimeTokenLoader, serviceKey)
+				secureProvider := NewSecureProvider(ctx, secretStoreConfig, logger, tokenLoader, serviceKey)
 				secureProvider.securityRuntimeSecretTokenDuration = securityRuntimeSecretTokenDuration
 				var secretClient client.SecretClient
 
 				logger.Info("Attempting to create secret client")
 
 				tokenCallbackFunc := secureProvider.DefaultTokenExpiredCallback
-				if secretConfig.RuntimeTokenProvider.Enabled {
-					tokenCallbackFunc = secureProvider.RuntimeTokenExpiredCallback
-				}
 
 				secretClient, err = client.NewSecretsClient(ctx, secretConfig, logger, tokenCallbackFunc)
 				if err == nil {
@@ -125,7 +113,7 @@ func NewSecretProvider(
 						return nil, err
 					}
 					break
-				} else if strings.Contains(err.Error(), AccessTokenAuthError) && !secretConfig.RuntimeTokenProvider.Enabled {
+				} else if strings.Contains(err.Error(), AccessTokenAuthError) {
 					logger.Warnf("token expired, invoking secret-store-setup regen token API ........")
 
 					clientCollection, err := BuildSecretStoreSetupClientConfig(envVars, logger)
@@ -205,28 +193,25 @@ func BuildSecretStoreConfig(serviceKey string, envVars *environment.Variables, l
 // If a token file is present it will override the Authentication.AuthToken value.
 func getSecretConfig(secretStoreInfo *config.SecretStoreInfo,
 	tokenLoader authtokenloader.AuthTokenLoader,
-	runtimeTokenLoader runtimetokenprovider.RuntimeTokenProvider,
 	serviceKey string,
-	lc log.Logger,
-	securityRuntimeSecretTokenDuration gometrics.Timer) (types.SecretConfig, error) {
+	lc log.Logger) (types.SecretConfig, error) {
 	secretConfig := types.SecretConfig{
-		Type:                 secretStoreInfo.Type, // Type of SecretStore implementation, i.e. OpenBao
-		Host:                 secretStoreInfo.Host,
-		Port:                 secretStoreInfo.Port,
-		BasePath:             addEdgeXSecretNamePrefix(secretStoreInfo.StoreName),
-		SecretsFile:          secretStoreInfo.SecretsFile,
-		Protocol:             secretStoreInfo.Protocol,
-		Namespace:            secretStoreInfo.Namespace,
-		RootCaCertPath:       secretStoreInfo.RootCaCertPath,
-		ServerName:           secretStoreInfo.ServerName,
-		Authentication:       secretStoreInfo.Authentication,
-		RuntimeTokenProvider: secretStoreInfo.RuntimeTokenProvider,
+		Type:           secretStoreInfo.Type, // Type of SecretStore implementation, i.e. OpenBao
+		Host:           secretStoreInfo.Host,
+		Port:           secretStoreInfo.Port,
+		BasePath:       addEdgeXSecretNamePrefix(secretStoreInfo.StoreName),
+		SecretsFile:    secretStoreInfo.SecretsFile,
+		Protocol:       secretStoreInfo.Protocol,
+		Namespace:      secretStoreInfo.Namespace,
+		RootCaCertPath: secretStoreInfo.RootCaCertPath,
+		ServerName:     secretStoreInfo.ServerName,
+		Authentication: secretStoreInfo.Authentication,
 	}
 
 	// maybe insecure mode
-	// if both configs of token file and runtime token provider are empty or disabled
+	// if configs of token file is empty or disabled
 	// then we treat that as insecure mode
-	if !IsSecurityEnabled() || (secretStoreInfo.TokenFile == "" && !secretConfig.RuntimeTokenProvider.Enabled) {
+	if !IsSecurityEnabled() || (secretStoreInfo.TokenFile == "") {
 		lc.Info("insecure mode")
 		return secretConfig, nil
 	}
@@ -234,17 +219,9 @@ func getSecretConfig(secretStoreInfo *config.SecretStoreInfo,
 	// based on whether token provider config is configured or not, we will obtain token in different way
 	var token string
 	var err error
-	if secretConfig.RuntimeTokenProvider.Enabled {
-		lc.Info("runtime token provider enabled")
-		// call spiffe token provider to get token on the fly
-		started := time.Now()
-		token, err = runtimeTokenLoader.GetRawToken(serviceKey)
-		securityRuntimeSecretTokenDuration.UpdateSince(started)
-	} else {
-		lc.Info("load token from file")
-		// else obtain the token from TokenFile
-		token, err = tokenLoader.Load(secretStoreInfo.TokenFile)
-	}
+	lc.Info("load token from file")
+	// else obtain the token from TokenFile
+	token, err = tokenLoader.Load(secretStoreInfo.TokenFile)
 
 	if err != nil {
 		return secretConfig, err

@@ -85,7 +85,7 @@ func AuthenticationHandlerFunc(dic *di.Container) echo.MiddlewareFunc {
 					err = headers.VerifyJWT(token, issuer, parsedToken.Method.Alg(), dic, r.Context())
 				}
 				if err != nil {
-					return echo.NewHTTPError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
+					return echo.NewHTTPError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
 				} else {
 					return next(c)
 				}

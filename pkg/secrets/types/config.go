@@ -35,8 +35,6 @@ type SecretConfig struct {
 	RootCaCertPath string
 	ServerName     string
 	Authentication AuthenticationInfo
-	// RuntimeTokenProvider could be optional if not using delayed start from a runtime token provider
-	RuntimeTokenProvider RuntimeTokenProviderInfo
 }
 
 // BuildURL constructs a URL which can be used to identify a HTTP based secret provider
@@ -55,32 +53,10 @@ func (c SecretConfig) BuildRequestURL(subPath string) (string, error) {
 	return c.BuildURL(fmt.Sprintf("%s%s", c.BasePath, subPath))
 }
 
-// IsRuntimeProviderEnabled returns whether the token provider is using runtime token mechanism
-func (c SecretConfig) IsRuntimeProviderEnabled() bool {
-	return c.RuntimeTokenProvider.Enabled
-}
-
 // AuthenticationInfo contains authentication information to be used when communicating with an HTTP based provider
 type AuthenticationInfo struct {
 	AuthType  string
 	AuthToken string
-}
-
-// RuntimeTokenProviderInfo contains the information about the server of a runtime secret token provider
-type RuntimeTokenProviderInfo struct {
-	Enabled        bool
-	Protocol       string
-	Host           string
-	Port           int
-	TrustDomain    string
-	EndpointSocket string
-	// comma-separated list of required secrets for the service
-	// currently we have redis in a typical use case
-	RequiredSecrets string
-}
-
-func (provider RuntimeTokenProviderInfo) BuildProviderURL(path string) (string, error) {
-	return buildURL(provider.Protocol, provider.Host, path, provider.Port)
 }
 
 func buildURL(protocol, host, path string, portNum int) (string, error) {

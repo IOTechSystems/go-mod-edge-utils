@@ -107,8 +107,6 @@ type SecretStoreInfo struct {
 	// DisableScrubSecretsFile specifies to not scrub secrets file after importing. Service will fail start-up if
 	// not disabled and file can not be written.
 	DisableScrubSecretsFile bool
-	// RuntimeTokenProvider is optional if not using delayed start from spiffe-token provider
-	RuntimeTokenProvider types.RuntimeTokenProviderInfo
 }
 
 // InsecureSecrets is used to hold the secrets stored in the configuration
@@ -183,15 +181,6 @@ func NewSecretStoreInfo(serviceKey string) SecretStoreInfo {
 		Authentication: types.AuthenticationInfo{
 			AuthType:  "X-Vault-Token",
 			AuthToken: "",
-		},
-		RuntimeTokenProvider: types.RuntimeTokenProviderInfo{
-			Enabled:         false,
-			Protocol:        "https",
-			Host:            "localhost",
-			Port:            59841,
-			TrustDomain:     "edgexfoundry.org",
-			EndpointSocket:  "/tmp/edgex/secrets/spiffe/public/api.sock",
-			RequiredSecrets: "redisdb",
 		},
 	}
 }
