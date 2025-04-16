@@ -43,15 +43,3 @@ func NewSecretsClient(ctx context.Context, config types.SecretConfig, lc log.Log
 		return nil, fmt.Errorf("invalid secrets client type of '%s'", config.Type)
 	}
 }
-
-// NewSecretStoreClient creates a new instance of a SecretClient based on the passed in configuration.
-// The SecretStoreClient provides management functionality to manage the secret store.
-func NewSecretStoreClient(config types.SecretConfig, lc log.Logger, requester secrets.Caller) (SecretStoreClient, error) {
-	switch config.Type {
-	case DefaultSecretStore:
-		return openbao.NewClient(config, requester, false, lc)
-
-	default:
-		return nil, fmt.Errorf("invalid secret store client type of '%s'", config.Type)
-	}
-}

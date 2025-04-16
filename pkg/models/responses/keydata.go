@@ -14,10 +14,3 @@ type KeyDataResponse struct {
 	models.BaseResponse `json:",inline"`
 	KeyData             models.KeyData `json:"keyData"`
 }
-
-func NewKeyDataResponse(requestId string, message string, statusCode int, keyData models.KeyData) KeyDataResponse {
-	return KeyDataResponse{
-		BaseResponse: models.NewBaseResponse(requestId, message, statusCode),
-		KeyData:      keyData,
-	}
-}

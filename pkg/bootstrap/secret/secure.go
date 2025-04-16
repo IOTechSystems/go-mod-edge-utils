@@ -39,51 +39,47 @@ import (
 )
 
 const (
-	TokenTypeKeeper      = "keeper"
 	AccessTokenAuthError = "HTTP response with status code 403"
 	//nolint: gosec
-	SecretsAuthError                     = "Received a '403' response"
-	EnvEdgeXUseCommonAppServiceSecretKey = "EDGEX_USE_COMMON_APP_SERVICE_SECRET_KEY" // nolint: gosec
+	SecretsAuthError = "Received a '403' response"
 )
 
 // SecureProvider implements the SecretProvider interface
 type SecureProvider struct {
-	secretClient                       client.SecretClient
-	lc                                 log.Logger
-	loader                             authtokenloader.AuthTokenLoader
-	serviceKey                         string
-	secretStoreInfo                    config.SecretStoreInfo
-	secretsCache                       map[string]map[string]string // secret's secretName, key, value
-	cacheMutex                         *sync.RWMutex
-	lastUpdated                        time.Time
-	ctx                                context.Context
-	registeredSecretCallbacks          map[string]func(secretName string)
-	securitySecretsRequested           gometrics.Counter
-	securitySecretsStored              gometrics.Counter
-	securityRuntimeSecretTokenDuration gometrics.Timer
-	securityGetSecretDuration          gometrics.Timer
-	httpRoundTripper                   http.RoundTripper
-	fallbackDialer                     *net.Dialer
-	zeroTrustEnabled                   bool
+	secretClient              client.SecretClient
+	lc                        log.Logger
+	loader                    authtokenloader.AuthTokenLoader
+	serviceKey                string
+	secretStoreInfo           config.SecretStoreInfo
+	secretsCache              map[string]map[string]string // secret's secretName, key, value
+	cacheMutex                *sync.RWMutex
+	lastUpdated               time.Time
+	ctx                       context.Context
+	registeredSecretCallbacks map[string]func(secretName string)
+	securitySecretsRequested  gometrics.Counter
+	securitySecretsStored     gometrics.Counter
+	securityGetSecretDuration gometrics.Timer
+	httpRoundTripper          http.RoundTripper
+	fallbackDialer            *net.Dialer
+	zeroTrustEnabled          bool
 }
 
 // NewSecureProvider creates & initializes Provider instance for secure secrets.
 func NewSecureProvider(ctx context.Context, secretStoreInfo *config.SecretStoreInfo, lc log.Logger,
 	loader authtokenloader.AuthTokenLoader, serviceKey string) *SecureProvider {
 	provider := &SecureProvider{
-		lc:                                 lc,
-		loader:                             loader,
-		serviceKey:                         serviceKey,
-		secretStoreInfo:                    *secretStoreInfo,
-		secretsCache:                       make(map[string]map[string]string),
-		cacheMutex:                         &sync.RWMutex{},
-		lastUpdated:                        time.Now(),
-		ctx:                                ctx,
-		registeredSecretCallbacks:          make(map[string]func(secretName string)),
-		securitySecretsRequested:           gometrics.NewCounter(),
-		securitySecretsStored:              gometrics.NewCounter(),
-		securityRuntimeSecretTokenDuration: gometrics.NewTimer(),
-		securityGetSecretDuration:          gometrics.NewTimer(),
+		lc:                        lc,
+		loader:                    loader,
+		serviceKey:                serviceKey,
+		secretStoreInfo:           *secretStoreInfo,
+		secretsCache:              make(map[string]map[string]string),
+		cacheMutex:                &sync.RWMutex{},
+		lastUpdated:               time.Now(),
+		ctx:                       ctx,
+		registeredSecretCallbacks: make(map[string]func(secretName string)),
+		securitySecretsRequested:  gometrics.NewCounter(),
+		securitySecretsStored:     gometrics.NewCounter(),
+		securityGetSecretDuration: gometrics.NewTimer(),
 	}
 	return provider
 }
@@ -418,10 +414,9 @@ func (p *SecureProvider) DeregisterSecretUpdatedCallback(secretName string) {
 // GetMetricsToRegister returns all metric objects that needs to be registered.
 func (p *SecureProvider) GetMetricsToRegister() map[string]interface{} {
 	return map[string]interface{}{
-		secretsRequestedMetricName:             p.securitySecretsRequested,
-		secretsStoredMetricName:                p.securitySecretsStored,
-		securityRuntimeSecretTokenDurationName: p.securityRuntimeSecretTokenDuration,
-		securityGetSecretDurationName:          p.securityGetSecretDuration,
+		secretsRequestedMetricName:    p.securitySecretsRequested,
+		secretsStoredMetricName:       p.securitySecretsStored,
+		securityGetSecretDurationName: p.securityGetSecretDuration,
 	}
 }
 

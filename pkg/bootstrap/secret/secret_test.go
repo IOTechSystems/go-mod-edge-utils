@@ -40,7 +40,7 @@ import (
 const (
 	expectedUsername    = "admin"
 	expectedPassword    = "password"
-	expectedSecretName  = "redisdb"
+	expectedSecretName  = "postgres"
 	expectedInsecureJWT = "" // Empty when in non-secure mode
 	expectedSecureJWT   = "secureJwtToken"
 )
@@ -85,7 +85,7 @@ func TestNewSecretProvider(t *testing.T) {
 					case "/v1/auth/token/lookup-self":
 						w.WriteHeader(http.StatusOK)
 						_, _ = w.Write([]byte(testTokenResponse))
-					case "/v1/secret/edgex/testServiceKey/redisdb":
+					case "/v1/secret/edgex/testServiceKey/postgres":
 						w.WriteHeader(http.StatusOK)
 						data := make(map[string]interface{})
 						data["data"] = expectedSecrets

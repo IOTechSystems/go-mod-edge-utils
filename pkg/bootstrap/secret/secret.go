@@ -34,16 +34,13 @@ import (
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets/client"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets/types"
-
-	gometrics "github.com/rcrowley/go-metrics"
 )
 
 // secret service Metric Names
 const (
-	secretsRequestedMetricName             = "SecuritySecretsRequested"
-	secretsStoredMetricName                = "SecuritySecretsStored"
-	securityRuntimeSecretTokenDurationName = "SecurityRuntimeSecretTokenDuration"
-	securityGetSecretDurationName          = "SecurityGetSecretDuration"
+	secretsRequestedMetricName    = "SecuritySecretsRequested"
+	secretsStoredMetricName       = "SecuritySecretsStored"
+	securityGetSecretDurationName = "SecurityGetSecretDuration"
 )
 
 // NewSecretProvider creates a new fully initialized the Secret Provider.
@@ -80,13 +77,9 @@ func NewSecretProvider(
 				tokenLoader = authtokenloader.NewAuthTokenLoader(fileioperformer.NewDefaultFileIoPerformer())
 			}
 
-			// We need to create securityRuntimeSecretTokenDuration here because we want to measure the time taken
-			// to get the secret config, but the secureProvider instance is created after this step.
-			securityRuntimeSecretTokenDuration := gometrics.NewTimer()
 			secretConfig, err = getSecretConfig(secretStoreConfig, tokenLoader, serviceKey, logger)
 			if err == nil {
 				secureProvider := NewSecureProvider(ctx, secretStoreConfig, logger, tokenLoader, serviceKey)
-				secureProvider.securityRuntimeSecretTokenDuration = securityRuntimeSecretTokenDuration
 				var secretClient client.SecretClient
 
 				logger.Info("Attempting to create secret client")

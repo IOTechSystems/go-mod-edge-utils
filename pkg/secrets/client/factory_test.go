@@ -24,7 +24,6 @@ import (
 	"testing"
 
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets/openbao"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets/types"
 
@@ -78,36 +77,6 @@ func TestNewSecretsClient(t *testing.T) {
 			}
 
 			client, err := NewSecretsClient(test.Ctx, config, mockLogger, nil)
-			if test.ExpectError {
-				require.Error(t, err)
-				return
-			}
-
-			require.NoError(t, err)
-			require.NotNil(t, client)
-		})
-	}
-}
-
-func TestNewSecretStoreClient(t *testing.T) {
-	mockLogger := log.NewMockClient()
-
-	tests := []struct {
-		Name        string
-		Type        string
-		ExpectError bool
-	}{
-		{"Valid", DefaultSecretStore, false},
-		{"Invalid - bad type", "BAD", true},
-	}
-
-	for _, test := range tests {
-		t.Run(test.Name, func(t *testing.T) {
-			config := types.SecretConfig{
-				Type: test.Type,
-			}
-
-			client, err := NewSecretStoreClient(config, mockLogger, secrets.NewMockRequester().Insecure())
 			if test.ExpectError {
 				require.Error(t, err)
 				return
