@@ -19,6 +19,9 @@ package secret
 import (
 	"context"
 	"fmt"
+	"path"
+	"strings"
+
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/config"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/container"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/environment"
@@ -31,8 +34,6 @@ import (
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets/client"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets/types"
-	"path"
-	"strings"
 
 	gometrics "github.com/rcrowley/go-metrics"
 )

@@ -25,9 +25,7 @@ import (
 )
 
 const (
-	ServiceTypeApp = "app-service"
-	//TOOD: add security-service to use in place of useSecretProvider
-
+	ServiceTypeApp                     = "app-service"
 	SecuritySecretStoreSetupServiceKey = "security-secretstore-setup"
 )
 

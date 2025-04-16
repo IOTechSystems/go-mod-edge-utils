@@ -7,12 +7,12 @@ package clients
 
 import (
 	"context"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets"
 
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/utils"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/common"
 	clientinterface "github.com/IOTechSystems/go-mod-edge-utils/pkg/contracts/clients/interfaces"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/models"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets"
 )
 
 const (

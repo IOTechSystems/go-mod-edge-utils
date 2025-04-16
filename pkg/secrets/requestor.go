@@ -20,11 +20,12 @@ package secrets
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/secret/token/fileioperformer"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/secret/token/fileioperformer"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
 )
 
 const httpClientTimeoutDuration = 10 * time.Second

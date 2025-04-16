@@ -17,9 +17,10 @@
 package secrets
 
 import (
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
 	"strings"
 	"testing"
+
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
 
 	"github.com/stretchr/testify/assert"
 )

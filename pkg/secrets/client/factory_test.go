@@ -1,6 +1,6 @@
 /*******************************************************************************
  * Copyright 2021 Intel Corp.
- * Copyright 2024 IOTech Ltd
+ * Copyright 2024-2025 IOTech Ltd
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -17,15 +17,16 @@ package client
 
 import (
 	"context"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets/openbao"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets/types"
 	"net"
 	"net/url"
 	"strconv"
 	"sync"
 	"testing"
+
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets/openbao"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets/types"
 
 	"github.com/stretchr/testify/require"
 )

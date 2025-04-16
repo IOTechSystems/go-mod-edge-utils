@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2024 IOTech Ltd
+// Copyright (C) 2024-2025 IOTech Ltd
 //
 // SPDX-License-Identifier: Apache-2.0
 
@@ -8,10 +8,12 @@ package requests
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/models"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/validator"
+
 	"github.com/labstack/echo/v4"
-	"net/http"
 )
 
 // AddKeyDataRequest defines the Request Content for POST Key DTO.

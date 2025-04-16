@@ -8,13 +8,13 @@ package headers
 import (
 	"context"
 	stdErrs "errors"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/container"
-	"github.com/labstack/echo/v4"
 	"net/http"
 
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/container"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/di"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/labstack/echo/v4"
 )
 
 // VerifyJWT validates the JWT issued by security-proxy-auth by using the verification key provided by the security-proxy-auth service
