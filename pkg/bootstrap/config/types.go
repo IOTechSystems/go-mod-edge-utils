@@ -25,7 +25,6 @@ import (
 )
 
 const (
-	ServiceTypeApp                     = "app-service"
 	SecuritySecretStoreSetupServiceKey = "security-secretstore-setup"
 )
 

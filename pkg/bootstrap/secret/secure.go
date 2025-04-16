@@ -427,8 +427,7 @@ func (p *SecureProvider) GetMetricsToRegister() map[string]interface{} {
 
 // GetSelfJWT returns an encoded JWT for the current identity-based secret store token
 func (p *SecureProvider) GetSelfJWT() (string, error) {
-	serviceKey := p.overwriteAppServiceKey(p.serviceKey)
-	return p.secretClient.GetSelfJWT(serviceKey)
+	return p.secretClient.GetSelfJWT(p.serviceKey)
 }
 
 // IsJWTValid evaluates a given JWT and returns a true/false if the JWT is valid (i.e. belongs to us and current) or not
@@ -466,13 +465,4 @@ func (p *SecureProvider) IsZeroTrustEnabled() bool {
 
 func (p *SecureProvider) EnableZeroTrust() {
 	p.zeroTrustEnabled = true
-}
-
-func (p *SecureProvider) overwriteAppServiceKey(serviceKey string) string {
-	if strings.HasPrefix(serviceKey, "app-") &&
-		strings.EqualFold(os.Getenv(EnvEdgeXUseCommonAppServiceSecretKey), "true") {
-		p.lc.Infof("Overwrote ASC serviceKey from %s to %s", serviceKey, config.ServiceTypeApp)
-		return config.ServiceTypeApp
-	}
-	return serviceKey
 }
