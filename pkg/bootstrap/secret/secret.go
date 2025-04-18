@@ -50,10 +50,10 @@ func NewSecretProvider(
 	ctx context.Context,
 	startupTimer startup.Timer,
 	dic *di.Container,
-	serviceKey string) (interfaces.SecretProviderExt, error) {
+	serviceKey string) (interfaces.SecretProvider, error) {
 	logger := container.LoggerFrom(dic.Get)
 
-	var provider interfaces.SecretProviderExt
+	var provider interfaces.SecretProvider
 
 	switch IsSecurityEnabled() {
 	case true:
@@ -155,9 +155,6 @@ func NewSecretProvider(
 		// Must put the SecretProvider instance in the DIC for both the standard API use by service code
 		// and the extended API used by boostrap code
 		container.SecretProviderName: func(get di.Get) any {
-			return provider
-		},
-		container.SecretProviderExtName: func(get di.Get) any {
 			return provider
 		},
 	})

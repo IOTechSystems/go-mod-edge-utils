@@ -20,8 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
-	"net/http"
 	"os"
 	"strings"
 	"sync"
@@ -59,9 +57,6 @@ type SecureProvider struct {
 	securitySecretsRequested  gometrics.Counter
 	securitySecretsStored     gometrics.Counter
 	securityGetSecretDuration gometrics.Timer
-	httpRoundTripper          http.RoundTripper
-	fallbackDialer            *net.Dialer
-	zeroTrustEnabled          bool
 }
 
 // NewSecureProvider creates & initializes Provider instance for secure secrets.
@@ -428,36 +423,4 @@ func (p *SecureProvider) GetSelfJWT() (string, error) {
 // IsJWTValid evaluates a given JWT and returns a true/false if the JWT is valid (i.e. belongs to us and current) or not
 func (p *SecureProvider) IsJWTValid(jwt string) (bool, error) {
 	return p.secretClient.IsJWTValid(jwt)
-}
-
-func (p *SecureProvider) HttpTransport() http.RoundTripper {
-	return p.httpRoundTripper
-}
-
-func (p *SecureProvider) SetHttpTransport(rt http.RoundTripper) {
-	if p.httpRoundTripper == nil {
-		p.httpRoundTripper = rt
-	} else {
-		p.lc.Warnf("refusing to override httpRoundTripper, already set")
-	}
-}
-
-func (p *SecureProvider) FallbackDialer() *net.Dialer {
-	return p.fallbackDialer
-}
-
-func (p *SecureProvider) SetFallbackDialer(dialer *net.Dialer) {
-	if p.fallbackDialer == nil {
-		p.fallbackDialer = dialer
-	} else {
-		p.lc.Warnf("refusing to override fallbackDialer, already set")
-	}
-}
-
-func (p *SecureProvider) IsZeroTrustEnabled() bool {
-	return p.zeroTrustEnabled
-}
-
-func (p *SecureProvider) EnableZeroTrust() {
-	p.zeroTrustEnabled = true
 }

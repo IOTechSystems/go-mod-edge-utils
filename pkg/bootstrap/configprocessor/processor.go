@@ -78,7 +78,7 @@ func NewProcessor(
 func (cp *Processor) Process(
 	serviceType string,
 	serviceConfig interfaces.Configuration,
-	secretProvider interfaces.SecretProviderExt) error {
+	secretProvider interfaces.SecretProvider) error {
 
 	if err := cp.loadFromFile(serviceConfig, "service"); err != nil {
 		return err

@@ -14,12 +14,4 @@ type AuthenticationInjector interface {
 	// AddAuthenticationData mutates an HTTP request to add authentication data
 	// (suth as an Authorization: header) to an outbound HTTP request
 	AddAuthenticationData(_ *http.Request) error
-	// Returns the configured *http.Transport to use when making the request
-	SecureTransportProvider
-}
-
-// SecureTransportProvider defines an interface to obtain a secure http.Transport to use when making http requests
-type SecureTransportProvider interface {
-	// Returns the configured *http.Transport to use when making the request
-	RoundTripper() http.RoundTripper
 }

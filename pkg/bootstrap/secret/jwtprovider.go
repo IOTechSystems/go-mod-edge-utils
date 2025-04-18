@@ -14,10 +14,10 @@ import (
 )
 
 type jwtSecretProvider struct {
-	secretProvider interfaces.SecretProviderExt
+	secretProvider interfaces.SecretProvider
 }
 
-func NewJWTSecretProvider(secretProvider interfaces.SecretProviderExt) clientinterfaces.AuthenticationInjector {
+func NewJWTSecretProvider(secretProvider interfaces.SecretProvider) clientinterfaces.AuthenticationInjector {
 	return &jwtSecretProvider{
 		secretProvider: secretProvider,
 	}
@@ -42,8 +42,4 @@ func (self *jwtSecretProvider) AddAuthenticationData(req *http.Request) error {
 	}
 
 	return nil
-}
-func (self *jwtSecretProvider) RoundTripper() http.RoundTripper {
-	// Do nothing to the request; used for unit tests
-	return self.secretProvider.HttpTransport()
 }

@@ -104,7 +104,7 @@ func RunAndReturnWaitGroup(
 
 	envVars := environment.NewVariables(logger)
 
-	var secretProvider interfaces.SecretProviderExt
+	var secretProvider interfaces.SecretProvider
 	if useSecretProvider {
 		secretProvider, err = secret.NewSecretProvider(serviceConfig, envVars, ctx, startupTimer, dic, serviceKey)
 		if err != nil {

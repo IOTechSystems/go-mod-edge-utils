@@ -55,7 +55,7 @@ func AuthenticationHandlerFunc(dic *di.Container) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			lc := container.LoggerFrom(dic.Get)
-			secretProvider := container.SecretProviderExtFrom(dic.Get)
+			secretProvider := container.SecretProviderFrom(dic.Get)
 			r := c.Request()
 			w := c.Response()
 			authHeader := r.Header.Get("Authorization")

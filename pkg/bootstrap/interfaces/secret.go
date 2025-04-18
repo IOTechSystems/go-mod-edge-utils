@@ -16,8 +16,6 @@
 package interfaces
 
 import (
-	"net"
-	"net/http"
 	"time"
 )
 
@@ -48,12 +46,6 @@ type SecretProvider interface {
 
 	// DeregisterSecretUpdatedCallback removes a secret's registered callback secretName.
 	DeregisterSecretUpdatedCallback(secretName string)
-}
-
-// SecretProviderExt defines the extended contract for secret provider implementations that
-// provide additional APIs needed only from the bootstrap code.
-type SecretProviderExt interface {
-	SecretProvider
 
 	// SecretsUpdated sets the secrets last updated time to current time.
 	SecretsUpdated()
@@ -69,22 +61,4 @@ type SecretProviderExt interface {
 
 	// IsJWTValid evaluates a given JWT and returns a true/false if the JWT is valid (i.e. belongs to us and current) or not
 	IsJWTValid(jwt string) (bool, error)
-
-	// HttpTransport returns the http.RoundTripper to be used by http-based clients
-	HttpTransport() http.RoundTripper
-
-	// SetHttpTransport sets the http.RoundTripper to be used by http-based clients
-	SetHttpTransport(rt http.RoundTripper)
-
-	// FallbackDialer returns the dialer to use to establish connections when there is no zero trust service found/authorized
-	FallbackDialer() *net.Dialer
-
-	// SetFallbackDialer sets the dialer to use to establish connections when there is no zero trust service found/authorized
-	SetFallbackDialer(dialer *net.Dialer)
-
-	// IsZeroTrustEnabled returns whether zero trust principles are enabled
-	IsZeroTrustEnabled() bool
-
-	// EnableZeroTrust marks the provider as being zero trust enabled
-	EnableZeroTrust()
 }

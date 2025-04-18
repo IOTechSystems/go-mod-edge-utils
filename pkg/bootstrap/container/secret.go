@@ -34,17 +34,3 @@ func SecretProviderFrom(get di.Get) interfaces.SecretProvider {
 
 	return provider
 }
-
-// SecretProviderExtName contains the name of the interfaces.SecretProviderExt implementation in the DIC.
-var SecretProviderExtName = di.TypeInstanceToName((*interfaces.SecretProviderExt)(nil))
-
-// SecretProviderExtFrom helper function queries the DIC and returns the interfaces.SecretProviderExt
-// implementation.
-func SecretProviderExtFrom(get di.Get) interfaces.SecretProviderExt {
-	provider, ok := get(SecretProviderExtName).(interfaces.SecretProviderExt)
-	if !ok {
-		return nil
-	}
-
-	return provider
-}

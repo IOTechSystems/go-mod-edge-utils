@@ -372,7 +372,7 @@ func makeRequest(req *http.Request, authInjector interfaces.AuthenticationInject
 		}
 	}
 
-	client := &http.Client{Transport: authInjector.RoundTripper()}
+	client := &http.Client{}
 
 	resp, err := client.Do(req)
 	if err != nil {

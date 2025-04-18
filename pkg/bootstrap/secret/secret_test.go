@@ -140,10 +140,7 @@ func TestNewSecretProvider(t *testing.T) {
 			assert.Equal(t, expectedUsername, actualSecrets[UsernameKey])
 			assert.Equal(t, expectedPassword, actualSecrets[PasswordKey])
 
-			actualProviderExt := container.SecretProviderExtFrom(dic.Get)
-			assert.NotNil(t, actualProviderExt)
-
-			actualJWT, err := actualProviderExt.GetSelfJWT()
+			actualJWT, err := actualProvider.GetSelfJWT()
 			require.NoError(t, err)
 			assert.Equal(t, expectedJWT, actualJWT)
 

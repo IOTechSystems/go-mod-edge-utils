@@ -15,7 +15,7 @@ import (
 )
 
 // SecretStoreAuthenticationHandlerFunc verifies the JWT with a OpenBao-based JWT authentication check
-func SecretStoreAuthenticationHandlerFunc(secretProvider interfaces.SecretProviderExt, lc log.Logger, token string, c echo.Context) error {
+func SecretStoreAuthenticationHandlerFunc(secretProvider interfaces.SecretProvider, lc log.Logger, token string, c echo.Context) error {
 	r := c.Request()
 
 	validToken, err := secretProvider.IsJWTValid(token)

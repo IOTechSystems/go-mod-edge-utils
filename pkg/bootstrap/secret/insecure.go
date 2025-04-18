@@ -18,8 +18,6 @@ package secret
 import (
 	"errors"
 	"fmt"
-	"net"
-	"net/http"
 	"strings"
 	"time"
 
@@ -223,28 +221,4 @@ func (p *InsecureProvider) GetSelfJWT() (string, error) {
 // IsJWTValid evaluates a given JWT and returns a true/false if the JWT is valid (i.e. belongs to us and current) or not
 func (p *InsecureProvider) IsJWTValid(jwt string) (bool, error) {
 	return true, nil
-}
-
-func (p *InsecureProvider) HttpTransport() http.RoundTripper {
-	return http.DefaultTransport
-}
-
-func (p *InsecureProvider) SetHttpTransport(_ http.RoundTripper) {
-	//empty on purpose
-}
-
-func (p *InsecureProvider) IsZeroTrustEnabled() bool {
-	return false
-}
-
-func (p *InsecureProvider) EnableZeroTrust() {
-	//empty on purpose
-}
-
-func (p *InsecureProvider) FallbackDialer() *net.Dialer {
-	return &net.Dialer{}
-}
-
-func (p *InsecureProvider) SetFallbackDialer(_ *net.Dialer) {
-	//empty on purpose
 }
