@@ -7,9 +7,9 @@ package clients
 
 import (
 	"context"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/rest/interfaces"
 
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/common"
-	clientinterface "github.com/IOTechSystems/go-mod-edge-utils/pkg/contracts/clients/interfaces"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/models"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/rest"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets"
@@ -27,11 +27,11 @@ const (
 
 type SecretStoreTokenClient struct {
 	baseUrlFunc  ClientBaseUrlFunc
-	authInjector clientinterface.AuthenticationInjector
+	authInjector interfaces.AuthenticationInjector
 }
 
 // NewSecretStoreTokenClient creates an instance of SecretStoreTokenClient
-func NewSecretStoreTokenClient(baseUrl string, authInjector clientinterface.AuthenticationInjector) clientinterface.SecretStoreTokenClient {
+func NewSecretStoreTokenClient(baseUrl string, authInjector interfaces.AuthenticationInjector) interfaces.SecretStoreTokenClient {
 	return &SecretStoreTokenClient{
 		baseUrlFunc:  GetDefaultClientBaseUrlFunc(baseUrl),
 		authInjector: authInjector,
