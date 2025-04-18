@@ -35,41 +35,41 @@ func (lc MockLogger) LogLevel() string {
 }
 
 // Info simulates logging an entry at the INFO severity level
-func (lc MockLogger) Info(_ string, _ ...interface{}) {
+func (lc MockLogger) Info(_ string, _ ...any) {
 }
 
 // Debug simulates logging an entry at the DEBUG severity level
-func (lc MockLogger) Debug(_ string, _ ...interface{}) {
+func (lc MockLogger) Debug(_ string, _ ...any) {
 }
 
 // Error simulates logging an entry at the ERROR severity level
-func (lc MockLogger) Error(_ string, _ ...interface{}) {
+func (lc MockLogger) Error(_ string, _ ...any) {
 }
 
 // Trace simulates logging an entry at the TRACE severity level
-func (lc MockLogger) Trace(_ string, _ ...interface{}) {
+func (lc MockLogger) Trace(_ string, _ ...any) {
 }
 
 // Warn simulates logging an entry at the WARN severity level
-func (lc MockLogger) Warn(_ string, _ ...interface{}) {
+func (lc MockLogger) Warn(_ string, _ ...any) {
 }
 
 // Infof simulates logging an formatted message at the INFO severity level
-func (lc MockLogger) Infof(_ string, _ ...interface{}) {
+func (lc MockLogger) Infof(_ string, _ ...any) {
 }
 
 // Debugf simulates logging an formatted message at the DEBUG severity level
-func (lc MockLogger) Debugf(_ string, _ ...interface{}) {
+func (lc MockLogger) Debugf(_ string, _ ...any) {
 }
 
 // Errorf simulates logging an formatted message at the ERROR severity level
-func (lc MockLogger) Errorf(_ string, _ ...interface{}) {
+func (lc MockLogger) Errorf(_ string, _ ...any) {
 }
 
 // Tracef simulates logging an formatted message at the TRACE severity level
-func (lc MockLogger) Tracef(_ string, _ ...interface{}) {
+func (lc MockLogger) Tracef(_ string, _ ...any) {
 }
 
 // Warnf simulates logging an formatted message at the WARN severity level
-func (lc MockLogger) Warnf(_ string, _ ...interface{}) {
+func (lc MockLogger) Warnf(_ string, _ ...any) {
 }

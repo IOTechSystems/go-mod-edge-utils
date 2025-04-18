@@ -34,7 +34,7 @@ func TestGetSecretData(t *testing.T) {
 	mockSecretProvider.On("GetSecret", "mqtt").Return(secrets, nil)
 
 	dic = di.NewContainer(di.ServiceConstructorMap{
-		container.SecretProviderName: func(get di.Get) interface{} {
+		container.SecretProviderName: func(get di.Get) any {
 			return mockSecretProvider
 		},
 	})

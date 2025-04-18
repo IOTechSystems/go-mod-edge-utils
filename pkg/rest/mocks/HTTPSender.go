@@ -15,11 +15,11 @@ type HTTPSender struct {
 }
 
 // HTTPPost provides a mock function with given fields: dic, data
-func (_m *HTTPSender) HTTPPost(dic *di.Container, data interface{}) errors.Error {
+func (_m *HTTPSender) HTTPPost(dic *di.Container, data any) errors.Error {
 	ret := _m.Called(dic, data)
 
 	var r0 errors.Error
-	if rf, ok := ret.Get(0).(func(*di.Container, interface{}) errors.Error); ok {
+	if rf, ok := ret.Get(0).(func(*di.Container, any) errors.Error); ok {
 		r0 = rf(dic, data)
 	} else {
 		if ret.Get(0) != nil {

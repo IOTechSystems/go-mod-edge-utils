@@ -320,13 +320,13 @@ func (c *Client) getSecretData(secretName string) (map[string]string, error) {
 		return nil, secrets.NewErrSecretStore(fmt.Sprintf("Received a '%d' response from the secret store", resp.StatusCode))
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	err = json.NewDecoder(resp.Body).Decode(&result)
 	if err != nil {
 		return nil, err
 	}
 
-	data, success := result["data"].(map[string]interface{})
+	data, success := result["data"].(map[string]any)
 	if !success || len(data) <= 0 {
 		return nil, secrets.NewErrSecretStore(fmt.Sprintf("No secretKeyValues are present at the secretName: '%s'", secretName))
 	}

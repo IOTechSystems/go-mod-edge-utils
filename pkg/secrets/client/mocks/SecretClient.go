@@ -15,11 +15,11 @@ type SecretClient struct {
 
 // GetSecret provides a mock function with given fields: secretName, keys
 func (_m *SecretClient) GetSecret(secretName string, keys ...string) (map[string]string, error) {
-	_va := make([]interface{}, len(keys))
+	_va := make([]any, len(keys))
 	for _i := range keys {
 		_va[_i] = keys[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, secretName)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)

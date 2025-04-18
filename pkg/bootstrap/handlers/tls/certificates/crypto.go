@@ -44,7 +44,7 @@ func generatePrivateKey(certificateSeed seed.CertificateSeed, logger log.Logger)
 // dumpKeyPair output sk,pk keypair (RSA or EC) to console
 // !!! Debug only for obvious security reasons...
 // ----------------------------------------------------------
-func dumpKeyPair(key interface{}, logger log.Logger) {
+func dumpKeyPair(key any, logger log.Logger) {
 	switch key.(type) {
 	case *rsa.PrivateKey:
 		logger.Debug(fmt.Sprintf(">> RSA SK: %q", key))

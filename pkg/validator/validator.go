@@ -19,7 +19,7 @@ func init() {
 }
 
 // Validate function will use the validator package to validate the struct annotation
-func Validate(a interface{}) error {
+func Validate(a any) error {
 	err := val.Struct(a)
 	// translate all error at once
 	if err != nil {

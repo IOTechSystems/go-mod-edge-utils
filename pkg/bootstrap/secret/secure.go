@@ -412,8 +412,8 @@ func (p *SecureProvider) DeregisterSecretUpdatedCallback(secretName string) {
 }
 
 // GetMetricsToRegister returns all metric objects that needs to be registered.
-func (p *SecureProvider) GetMetricsToRegister() map[string]interface{} {
-	return map[string]interface{}{
+func (p *SecureProvider) GetMetricsToRegister() map[string]any {
+	return map[string]any{
 		secretsRequestedMetricName:    p.securitySecretsRequested,
 		secretsStoredMetricName:       p.securitySecretsStored,
 		securityGetSecretDurationName: p.securityGetSecretDuration,

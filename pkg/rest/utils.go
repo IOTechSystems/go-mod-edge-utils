@@ -113,7 +113,7 @@ func EncodeAndWriteResponse(i any, w *echo.Response, lc log.Logger) error {
 	return nil
 }
 
-func EncodeAndWriteYamlResponse(i interface{}, w *echo.Response, lc log.Logger) error {
+func EncodeAndWriteYamlResponse(i any, w *echo.Response, lc log.Logger) error {
 	enc := yaml.NewEncoder(w)
 	err := enc.Encode(i)
 
@@ -272,10 +272,10 @@ func checkValueRange(name string, value, min, max int) errors.Error {
 // PutRequest makes the put JSON request and return the body
 func PutRequest(
 	ctx context.Context,
-	returnValuePointer interface{},
+	returnValuePointer any,
 	baseUrl string, requestPath string,
 	requestParams url.Values,
-	data interface{}, authInjector interfaces.AuthenticationInjector) error {
+	data any, authInjector interfaces.AuthenticationInjector) error {
 
 	req, err := CreateRequestWithRawData(ctx, http.MethodPut, baseUrl, requestPath, requestParams, data)
 	if err != nil {
@@ -393,7 +393,7 @@ func getBody(resp *http.Response) ([]byte, error) {
 	return body, nil
 }
 
-func CreateRequestWithRawData(ctx context.Context, httpMethod string, baseUrl string, requestPath string, requestParams url.Values, data interface{}) (*http.Request, error) {
+func CreateRequestWithRawData(ctx context.Context, httpMethod string, baseUrl string, requestPath string, requestParams url.Values, data any) (*http.Request, error) {
 	u, err := parseBaseUrlAndRequestPath(baseUrl, requestPath)
 	if err != nil {
 		return nil, echo.NewHTTPError(http.StatusInternalServerError, "failed to parse baseUrl and requestPath", err)

@@ -43,15 +43,15 @@ func (_m *SecretProviderExt) GetAccessToken(tokenType string, serviceKey string)
 }
 
 // GetMetricsToRegister provides a mock function with given fields:
-func (_m *SecretProviderExt) GetMetricsToRegister() map[string]interface{} {
+func (_m *SecretProviderExt) GetMetricsToRegister() map[string]any {
 	ret := _m.Called()
 
-	var r0 map[string]interface{}
-	if rf, ok := ret.Get(0).(func() map[string]interface{}); ok {
+	var r0 map[string]any
+	if rf, ok := ret.Get(0).(func() map[string]any); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(map[string]interface{})
+			r0 = ret.Get(0).(map[string]any)
 		}
 	}
 
@@ -60,11 +60,11 @@ func (_m *SecretProviderExt) GetMetricsToRegister() map[string]interface{} {
 
 // GetSecret provides a mock function with given fields: secretName, keys
 func (_m *SecretProviderExt) GetSecret(secretName string, keys ...string) (map[string]string, error) {
-	_va := make([]interface{}, len(keys))
+	_va := make([]any, len(keys))
 	for _i := range keys {
 		_va[_i] = keys[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, secretName)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)

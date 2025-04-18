@@ -87,13 +87,13 @@ func TestNewSecretProvider(t *testing.T) {
 						_, _ = w.Write([]byte(testTokenResponse))
 					case "/v1/secret/edgex/testServiceKey/postgres":
 						w.WriteHeader(http.StatusOK)
-						data := make(map[string]interface{})
+						data := make(map[string]any)
 						data["data"] = expectedSecrets
 						response, _ := json.Marshal(data)
 						_, _ = w.Write(response)
 					case "/v1/identity/oidc/token/testServiceKey":
 						w.WriteHeader(http.StatusOK)
-						data := make(map[string]interface{})
+						data := make(map[string]any)
 						data["data"] = expectedSecureJwtData
 						response, _ := json.Marshal(data)
 						_, _ = w.Write(response)
@@ -110,7 +110,7 @@ func TestNewSecretProvider(t *testing.T) {
 				mockTokenLoader := &mocks.AuthTokenLoader{}
 				mockTokenLoader.On("Load", "/tmp/edgex/secrets/testServiceKey/secrets-token.json").Return("Test Token", nil)
 				dic.Update(di.ServiceConstructorMap{
-					container.AuthTokenLoaderInterfaceName: func(get di.Get) interface{} {
+					container.AuthTokenLoaderInterfaceName: func(get di.Get) any {
 						return mockTokenLoader
 					},
 				})

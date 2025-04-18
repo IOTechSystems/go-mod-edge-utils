@@ -47,7 +47,7 @@ func SendJsonResp(
 	logger log.Logger,
 	writer *echo.Response,
 	request *http.Request,
-	response interface{},
+	response any,
 	statusCode int) error {
 
 	correlationID := request.Header.Get(common.CorrelationID)
