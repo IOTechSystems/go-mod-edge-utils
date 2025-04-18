@@ -86,7 +86,7 @@ func TestNewSecretsClient(t *testing.T) {
 		{"NewSecretClient with Namespace", cfgNamespace, false},
 		{"NewSecretClient with empty token", cfgEmptyToken, true},
 	}
-	mockLogger := log.NewMockClient()
+	mockLogger := log.NewNopeLogger()
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 
@@ -171,7 +171,7 @@ func TestMultipleTokenRenewals(t *testing.T) {
 
 	bkgCtx := context.Background()
 
-	mockLogger := log.NewMockClient()
+	mockLogger := log.NewNopeLogger()
 	tests := []struct {
 		name                     string
 		authToken                string
@@ -306,7 +306,7 @@ func TestMultipleClientsFailureCase(t *testing.T) {
 
 	bkgCtx := context.Background()
 
-	mockLogger := log.NewMockClient()
+	mockLogger := log.NewNopeLogger()
 	cfgHTTP := types.SecretConfig{
 		Host:           host,
 		Port:           portNum,
@@ -355,7 +355,7 @@ func TestConcurrentSecretClientTokenRenewals(t *testing.T) {
 	portNum, _ := strconv.Atoi(port)
 
 	bkgCtx := context.Background()
-	mockLogger := log.NewMockClient()
+	mockLogger := log.NewNopeLogger()
 	cfgHTTP := types.SecretConfig{
 		Host:           host,
 		Port:           portNum,
@@ -500,7 +500,7 @@ func TestHttpSecretStoreManager_GetSecret(t *testing.T) {
 		},
 	}
 
-	mockLogger := log.NewMockClient()
+	mockLogger := log.NewNopeLogger()
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			cfgHTTP := types.SecretConfig{
@@ -616,7 +616,7 @@ func TestHttpSecretStoreManager_StoreSecret(t *testing.T) {
 		},
 	}
 
-	mockLogger := log.NewMockClient()
+	mockLogger := log.NewNopeLogger()
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			cfgHTTP := types.SecretConfig{
@@ -932,7 +932,7 @@ func TestHttpSecretStoreManager_GetSecretNames(t *testing.T) {
 		},
 	}
 
-	mockLogger := log.NewMockClient()
+	mockLogger := log.NewNopeLogger()
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			cfgHTTP := types.SecretConfig{
@@ -1000,7 +1000,7 @@ func TestHttpSecretStoreManager_GetSelfJWT(t *testing.T) {
 			AuthToken: authToken,
 		},
 	}
-	mockLogger := log.NewMockClient()
+	mockLogger := log.NewNopeLogger()
 	client := Client{
 		Config: cfgHTTP,
 		HttpCaller: &SimpleMockAuthHttpCaller{
@@ -1026,7 +1026,7 @@ func TestHttpSecretStoreManager_IsJWTValid(t *testing.T) {
 			AuthToken: authToken,
 		},
 	}
-	mockLogger := log.NewMockClient()
+	mockLogger := log.NewNopeLogger()
 	client := Client{
 		Config: cfgHTTP,
 		HttpCaller: &SimpleMockAuthHttpCaller{

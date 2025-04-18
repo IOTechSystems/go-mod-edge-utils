@@ -31,7 +31,7 @@ import (
 )
 
 func TestNewSecretsClient(t *testing.T) {
-	mockLogger := log.NewMockClient()
+	mockLogger := log.NewNopeLogger()
 
 	tokenPeriod := 6
 	var tokenDataMap sync.Map

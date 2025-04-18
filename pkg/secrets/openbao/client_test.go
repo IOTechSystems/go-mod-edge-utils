@@ -24,7 +24,7 @@ import (
 )
 
 func TestNewClient(t *testing.T) {
-	mockLogger := log.NewMockClient()
+	mockLogger := log.NewNopeLogger()
 
 	validConfig := types.SecretConfig{
 		RootCaCertPath: "", // Leave empty so it uses default HTTP Client

@@ -69,7 +69,7 @@ func TestNewSecretProvider(t *testing.T) {
 			_ = os.Setenv(common.EnvSecretStore, tc.Secure)
 			timer := startup.NewStartUpTimer("UnitTest")
 
-			mockLogger := log.NewMockClient()
+			mockLogger := log.NewNopeLogger()
 			dic := di.NewContainer(di.ServiceConstructorMap{
 				container.LoggerInterfaceName: func(get di.Get) any {
 					return mockLogger
