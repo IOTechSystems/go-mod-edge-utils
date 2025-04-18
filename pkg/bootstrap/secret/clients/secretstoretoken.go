@@ -8,10 +8,10 @@ package clients
 import (
 	"context"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/utils"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/common"
 	clientinterface "github.com/IOTechSystems/go-mod-edge-utils/pkg/contracts/clients/interfaces"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/models"
+	"github.com/IOTechSystems/go-mod-edge-utils/pkg/rest"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets"
 )
 
@@ -47,7 +47,7 @@ func (ac *SecretStoreTokenClient) RegenToken(ctx context.Context, entityId strin
 	}
 
 	path := common.NewPathBuilder().SetPath(ApiTokenRoute).SetPath(EntityId).SetPath(entityId).BuildPath()
-	err = utils.PutRequest(ctx, &response, baseUrl, path, nil, nil, ac.authInjector)
+	err = rest.PutRequest(ctx, &response, baseUrl, path, nil, nil, ac.authInjector)
 	if err != nil {
 		return response, err
 	}
