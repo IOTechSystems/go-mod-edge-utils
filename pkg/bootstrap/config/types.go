@@ -19,7 +19,6 @@ package config
 import (
 	"fmt"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/mqtt5/models"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets/client"
 	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets/types"
 )
@@ -37,10 +36,7 @@ type GeneralConfiguration struct {
 	Service         ServiceInfo
 	SecretStore     SecretStoreInfo
 	InsecureSecrets InsecureSecrets
-	Mqtt5Configs    Mqtt5Configs
 }
-
-type Mqtt5Configs map[string]models.Mqtt5Config
 
 // GetBootstrap returns the configuration elements required by the bootstrap.
 func (c *GeneralConfiguration) GetBootstrap() BootstrapConfiguration {
@@ -57,11 +53,6 @@ func (c *GeneralConfiguration) GetLogLevel() string {
 // GetInsecureSecrets gets the config.InsecureSecrets field from the ConfigurationStruct.
 func (c *GeneralConfiguration) GetInsecureSecrets() InsecureSecrets {
 	return c.InsecureSecrets
-}
-
-// GetMqtt5Configs gets the config.Mqtt5Configs from the configuration struct.
-func (c *GeneralConfiguration) GetMqtt5Configs() Mqtt5Configs {
-	return c.Mqtt5Configs
 }
 
 // ServiceInfo contains configuration settings necessary for the basic operation of any Edge service.

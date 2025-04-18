@@ -3,7 +3,6 @@ module github.com/IOTechSystems/go-mod-edge-utils
 go 1.23
 
 require (
-	github.com/eclipse/paho.golang v0.12.0
 	github.com/go-kit/log v0.2.1
 	github.com/go-playground/validator/v10 v10.25.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
@@ -29,6 +28,7 @@ require (
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/kr/pretty v0.1.0 // indirect
+	github.com/kr/text v0.2.0 // indirect
 	github.com/labstack/gommon v0.4.2 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
@@ -39,7 +39,6 @@ require (
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	golang.org/x/crypto v0.32.0 // indirect
 	golang.org/x/net v0.34.0 // indirect
-	golang.org/x/sync v0.10.0 // indirect
 	golang.org/x/sys v0.29.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
 	golang.org/x/time v0.8.0 // indirect
