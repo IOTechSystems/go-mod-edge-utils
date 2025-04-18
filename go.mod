@@ -5,8 +5,7 @@ go 1.23
 require (
 	github.com/go-kit/log v0.2.1
 	github.com/go-playground/validator/v10 v10.25.0
-	github.com/golang-jwt/jwt v3.2.2+incompatible
-	github.com/golang-jwt/jwt/v5 v5.2.1
+	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/labstack/echo/v4 v4.13.3
