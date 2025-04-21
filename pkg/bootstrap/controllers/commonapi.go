@@ -13,15 +13,15 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/mitchellh/mapstructure"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/container"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/handlers"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/interfaces"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/utils"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/common"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/di"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/errors"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/models"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/container"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/handlers"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/interfaces"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/utils"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/common"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/di"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/errors"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/models"
 )
 
 // CommonController controller for common REST APIs

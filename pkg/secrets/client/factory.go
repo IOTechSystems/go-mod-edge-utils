@@ -18,10 +18,10 @@ package client
 import (
 	"context"
 	"fmt"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets/openbao"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets/types"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/secrets"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/secrets/openbao"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/secrets/types"
 )
 
 const DefaultSecretStore = "openbao"

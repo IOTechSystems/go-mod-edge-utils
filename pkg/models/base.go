@@ -8,7 +8,7 @@ package models
 import (
 	"github.com/google/uuid"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/common"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/common"
 )
 
 // Versionable shows the API version in DTOs

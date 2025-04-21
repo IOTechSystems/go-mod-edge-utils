@@ -19,8 +19,8 @@ package config
 import (
 	"fmt"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets/client"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets/types"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/secrets/client"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/secrets/types"
 )
 
 const (

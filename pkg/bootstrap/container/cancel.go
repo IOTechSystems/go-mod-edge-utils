@@ -18,7 +18,7 @@ package container
 import (
 	"context"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/di"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/di"
 )
 
 // CancelFuncName contains the name of the context.CancelFunc in the DIC.

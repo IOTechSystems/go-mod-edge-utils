@@ -12,10 +12,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/common"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/models"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/rest"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/common"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/models"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/rest"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"

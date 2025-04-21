@@ -18,8 +18,8 @@ package secret
 import (
 	"os"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/interfaces"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/common"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/interfaces"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/common"
 )
 
 const (

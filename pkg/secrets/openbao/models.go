@@ -16,7 +16,7 @@
 package openbao
 
 import (
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets/types"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/secrets/types"
 )
 
 type TokenLookupResponse struct {

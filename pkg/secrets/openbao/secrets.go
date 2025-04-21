@@ -25,9 +25,9 @@ import (
 	"path"
 	"time"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets/types"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/secrets"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/secrets/types"
 )
 
 // a map variable to handle the case of the same caller to have

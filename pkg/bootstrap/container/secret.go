@@ -17,8 +17,8 @@
 package container
 
 import (
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/interfaces"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/di"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/interfaces"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/di"
 )
 
 // SecretProviderName contains the name of the interfaces.SecretProvider implementation in the DIC.

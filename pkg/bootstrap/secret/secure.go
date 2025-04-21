@@ -25,12 +25,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/config"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/secret/token/authtokenloader"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/models"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets/client"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/config"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/secret/token/authtokenloader"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/models"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/secrets"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/secrets/client"
 
 	"github.com/hashicorp/go-multierror"
 	gometrics "github.com/rcrowley/go-metrics"

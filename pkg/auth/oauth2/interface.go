@@ -9,8 +9,8 @@ import (
 
 	"golang.org/x/oauth2"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/auth/jwt"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/errors"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/auth/jwt"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/errors"
 )
 
 // Authenticator is an interface for OAuth2 authenticators.

@@ -23,7 +23,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/secret/token/fileioperformer"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/secret/token/fileioperformer"
 )
 
 type tokenProvider struct {

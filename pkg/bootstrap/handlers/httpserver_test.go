@@ -7,7 +7,7 @@ package handlers
 
 import (
 	"encoding/json"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/models"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/models"
 	"github.com/stretchr/testify/mock"
 	"net/http"
 	"net/http/httptest"
@@ -18,8 +18,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/common"
-	loggerMocks "github.com/IOTechSystems/go-mod-edge-utils/pkg/log/mocks"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/common"
+	loggerMocks "github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log/mocks"
 )
 
 func TestRequestLimitMiddleware(t *testing.T) {

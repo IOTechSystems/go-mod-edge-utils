@@ -14,7 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/common"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/common"
 )
 
 func TestNewPingResponse(t *testing.T) {

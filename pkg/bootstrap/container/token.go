@@ -16,8 +16,8 @@
 package container
 
 import (
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/secret/token/authtokenloader"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/di"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/secret/token/authtokenloader"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/di"
 )
 
 // AuthTokenLoaderInterfaceName contains the name of the authtokenloader.AuthTokenLoader implementation in the DIC.

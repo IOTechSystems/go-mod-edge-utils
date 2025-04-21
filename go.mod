@@ -1,4 +1,4 @@
-module github.com/IOTechSystems/go-mod-edge-utils
+module github.com/IOTechSystems/go-mod-edge-utils/v2
 
 go 1.23.0
 

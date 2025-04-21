@@ -17,8 +17,8 @@
 package container
 
 import (
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/di"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/rest/interfaces"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/di"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/rest/interfaces"
 )
 
 // SecurityProxyAuthClientName contains the name of the AuthClient's implementation in the DIC.

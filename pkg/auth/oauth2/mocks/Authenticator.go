@@ -5,9 +5,9 @@ package mocks
 import (
 	http "net/http"
 
-	errors "github.com/IOTechSystems/go-mod-edge-utils/pkg/errors"
+	errors "github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/errors"
 
-	jwt "github.com/IOTechSystems/go-mod-edge-utils/pkg/auth/jwt"
+	jwt "github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/auth/jwt"
 
 	mock "github.com/stretchr/testify/mock"
 

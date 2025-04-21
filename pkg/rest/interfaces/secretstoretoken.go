@@ -7,7 +7,7 @@ package interfaces
 
 import (
 	"context"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/models"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/models"
 )
 
 // SecretStoreTokenClient defines the interface for interactions with the API endpoint on the security-secretstore-setup service.

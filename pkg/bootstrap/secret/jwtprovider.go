@@ -7,10 +7,10 @@ package secret
 
 import (
 	"fmt"
-	clientinterfaces "github.com/IOTechSystems/go-mod-edge-utils/pkg/rest/interfaces"
+	clientinterfaces "github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/rest/interfaces"
 	"net/http"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/interfaces"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/interfaces"
 )
 
 type jwtSecretProvider struct {

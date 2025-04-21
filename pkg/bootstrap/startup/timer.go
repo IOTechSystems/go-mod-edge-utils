@@ -17,7 +17,7 @@
 package startup
 
 import (
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/environment"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/environment"
 	"time"
 )
 

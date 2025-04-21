@@ -26,9 +26,9 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/config"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/common"
-	loggerMocks "github.com/IOTechSystems/go-mod-edge-utils/pkg/log/mocks"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/config"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/common"
+	loggerMocks "github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log/mocks"
 )
 
 const (

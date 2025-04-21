@@ -15,8 +15,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/common"
-	loggerMocks "github.com/IOTechSystems/go-mod-edge-utils/pkg/log/mocks"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/common"
+	loggerMocks "github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log/mocks"
 )
 
 var expectedCorrelationId = "927e91d3-864c-4c26-852d-b68c39492d14"

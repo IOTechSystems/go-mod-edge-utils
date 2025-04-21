@@ -19,8 +19,8 @@ package models
 
 import (
 	"encoding/json"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/errors"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/validator"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/errors"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/validator"
 )
 
 // SecretDataKeyValue is a key/value pair to be stored in the Secret Store as part of the Secret Data

@@ -22,11 +22,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/container"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/handlers/headers"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/secret"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/common"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/di"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/container"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/handlers/headers"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/secret"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/common"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/di"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"

@@ -3,8 +3,8 @@
 package mocks
 
 import (
-	di "github.com/IOTechSystems/go-mod-edge-utils/pkg/di"
-	errors "github.com/IOTechSystems/go-mod-edge-utils/pkg/errors"
+	di "github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/di"
+	errors "github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/errors"
 
 	mock "github.com/stretchr/testify/mock"
 )

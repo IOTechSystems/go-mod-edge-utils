@@ -22,7 +22,7 @@ import (
 	"net/http/httptest"
 	"sync"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/secrets/types"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/secrets/types"
 )
 
 // GetMockTokenServer returns a stub http test server for dealing with token lookup-self and renew-self API calls

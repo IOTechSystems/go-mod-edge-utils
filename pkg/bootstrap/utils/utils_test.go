@@ -16,13 +16,13 @@
 package utils
 
 import (
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/config"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/config"
 )
 
 type ConfigurationMockStruct struct {

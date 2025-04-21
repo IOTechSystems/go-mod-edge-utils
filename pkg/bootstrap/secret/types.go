@@ -19,8 +19,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/models"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/validator"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/models"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/validator"
 
 	"github.com/hashicorp/go-multierror"
 )

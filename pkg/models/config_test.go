@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/common"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/common"
 )
 
 func TestNewConfigResponse(t *testing.T) {

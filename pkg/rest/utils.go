@@ -10,7 +10,7 @@ import (
 	"encoding/json"
 	goErr "errors"
 	"fmt"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/rest/interfaces"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/rest/interfaces"
 	"io"
 	"net/http"
 	"net/url"
@@ -18,10 +18,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/common"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/errors"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/models"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/common"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/errors"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/models"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
