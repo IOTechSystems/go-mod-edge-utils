@@ -42,8 +42,7 @@ type Client struct {
 }
 
 // NewClient constructs a secret store *Client which communicates with OpenBao via HTTP(S)
-// lc is any logging client that implements the loggingClient interface;
-// today EdgeX's logger.LoggingClient from go-mod-core-contracts satisfies this implementation
+// lc is any logging client that implements the Logger interface.
 func NewClient(config types.SecretConfig, requester secrets.Caller, forSecrets bool, lc log.Logger) (*Client, error) {
 
 	if forSecrets && config.Authentication.AuthToken == "" {

@@ -190,7 +190,7 @@ func getSecretConfig(secretStoreInfo *config.SecretStoreInfo,
 		Type:           secretStoreInfo.Type, // Type of SecretStore implementation, i.e. OpenBao
 		Host:           secretStoreInfo.Host,
 		Port:           secretStoreInfo.Port,
-		BasePath:       addEdgeXSecretNamePrefix(secretStoreInfo.StoreName),
+		BasePath:       addSecretNamePrefix(secretStoreInfo.StoreName),
 		SecretsFile:    secretStoreInfo.SecretsFile,
 		Protocol:       secretStoreInfo.Protocol,
 		Namespace:      secretStoreInfo.Namespace,
@@ -222,7 +222,7 @@ func getSecretConfig(secretStoreInfo *config.SecretStoreInfo,
 	return secretConfig, nil
 }
 
-func addEdgeXSecretNamePrefix(secretName string) string {
+func addSecretNamePrefix(secretName string) string {
 	trimmedSecretName := strings.TrimSpace(secretName)
 
 	// in this case, treat it as no secret name prefix
@@ -230,7 +230,9 @@ func addEdgeXSecretNamePrefix(secretName string) string {
 		return ""
 	}
 
-	return "/" + path.Join("v1", "secret", "edgex", trimmedSecretName)
+	// All API routes are prefixed with "/v1", which is currently the only version. https://openbao.org/api-docs/
+	// The second part, "/secret", is the secret store mount point. This is hardcoded in edgex-go: https://github.com/edgexfoundry/edgex-go/blob/3fa30c341bbe9c3881ba0169229bc34ff150aef2/internal/security/secretstore/secretsengine/enabler.go#L28
+	return "/" + path.Join("v1", "secret", trimmedSecretName)
 }
 
 // BuildSecretStoreSetupClientConfig is public helper function that builds the ClientsCollection configuration

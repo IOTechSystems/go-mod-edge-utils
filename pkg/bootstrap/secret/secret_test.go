@@ -85,7 +85,7 @@ func TestNewSecretProvider(t *testing.T) {
 					case "/v1/auth/token/lookup-self":
 						w.WriteHeader(http.StatusOK)
 						_, _ = w.Write([]byte(testTokenResponse))
-					case "/v1/secret/edgex/testServiceKey/postgres":
+					case "/v1/secret/testServiceKey/postgres":
 						w.WriteHeader(http.StatusOK)
 						data := make(map[string]any)
 						data["data"] = expectedSecrets
