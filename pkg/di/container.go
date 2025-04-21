@@ -22,7 +22,7 @@
 //
 //	import (
 //		"fmt"
-//		"github.com/IOTechSystems/go-mod-edge-utils/pkg/di"
+//		"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/di"
 //	)
 //
 //	type foo struct {
