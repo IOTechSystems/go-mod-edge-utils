@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2024 IOTech Ltd
+// Copyright (C) 2024-2025 IOTech Ltd
 //
 
 package jwt
@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/errors"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/errors"
 )
 
 // GetTokenStringFromRequest gets the token string from the request header
@@ -127,13 +127,19 @@ func validateToken(tokenString string, secretKey string) (jwt.MapClaims, errors.
 		return nil, errors.NewBaseError(errors.KindUnauthorized, invalidMsg, nil, nil)
 	}
 
-	sameIssuer := claim.VerifyIssuer(IOTechIssuer, true)
-	if !sameIssuer {
+	issuer, err := claim.GetIssuer()
+	if err != nil {
+		return nil, errors.NewBaseError(errors.KindUnauthorized, invalidMsg, err, nil)
+	}
+	if issuer != IOTechIssuer {
 		return nil, errors.NewBaseError(errors.KindUnauthorized, unexpectedMsg, nil, nil)
 	}
 
-	notExpired := claim.VerifyExpiresAt(jwt.TimeFunc().Unix(), true)
-	if !notExpired {
+	expTime, err := claim.GetExpirationTime()
+	if err != nil {
+		return nil, errors.NewBaseError(errors.KindUnauthorized, invalidMsg, err, nil)
+	}
+	if expTime == nil || expTime.Time.Before(time.Now()) {
 		return nil, errors.NewBaseError(errors.KindUnauthorized, authRevokedMsg, nil, nil)
 	}
 

@@ -13,7 +13,7 @@ To send an audit message to a file, you first need to create a Logger with `serv
 Audit messages can be logged as `Base`, `Advanced`, or `Full`.
 ```
 logger := auditlog.InitLogger("SERVICE_NAME", "FULL", nil, auditlog.Configuration{})
-	details := map[string]interface{}{
+	details := map[string]any{
 		"key1": "value1",
 		"key2": "value2",
 	}

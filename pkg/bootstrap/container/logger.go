@@ -16,8 +16,8 @@
 package container
 
 import (
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/di"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/di"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log"
 )
 
 // LoggerInterfaceName contains the name of the log.Logger implementation in the DIC.

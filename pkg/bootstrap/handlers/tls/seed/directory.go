@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log"
 )
 
 type DirectoryHandler struct {

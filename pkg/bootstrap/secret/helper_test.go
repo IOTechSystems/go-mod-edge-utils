@@ -4,9 +4,9 @@ package secret
 
 import (
 	"errors"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/container"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/interfaces/mocks"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/di"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/container"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/interfaces/mocks"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/di"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -34,7 +34,7 @@ func TestGetSecretData(t *testing.T) {
 	mockSecretProvider.On("GetSecret", "mqtt").Return(secrets, nil)
 
 	dic = di.NewContainer(di.ServiceConstructorMap{
-		container.SecretProviderName: func(get di.Get) interface{} {
+		container.SecretProviderName: func(get di.Get) any {
 			return mockSecretProvider
 		},
 	})

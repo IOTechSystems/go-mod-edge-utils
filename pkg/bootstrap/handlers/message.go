@@ -19,9 +19,9 @@ import (
 	"context"
 	"sync"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/container"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/startup"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/di"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/container"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/startup"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/di"
 )
 
 // StartMessage contains references to dependencies required by the start message handler.

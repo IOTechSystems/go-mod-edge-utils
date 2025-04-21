@@ -5,22 +5,27 @@
 package rest
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	goErr "errors"
 	"fmt"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/rest/interfaces"
+	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/common"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/errors"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/models"
+
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"gopkg.in/yaml.v3"
-
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/handlers"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/common"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/errors"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
 )
 
 // Versionable shows the API version in DTOs
@@ -37,13 +42,13 @@ type BaseResponse struct {
 }
 
 func WriteDefaultHttpHeader(w http.ResponseWriter, ctx context.Context, statusCode int) {
-	w.Header().Set(common.CorrelationID, handlers.FromContext(ctx))
+	w.Header().Set(common.CorrelationID, FromContext(ctx, common.CorrelationID))
 	w.Header().Set(common.ContentType, common.ContentTypeJSON)
 	w.WriteHeader(statusCode)
 }
 
 func WriteHttpContentTypeHeader(w http.ResponseWriter, ctx context.Context, statusCode int, contentType string) {
-	w.Header().Set(common.CorrelationID, handlers.FromContext(ctx))
+	w.Header().Set(common.CorrelationID, FromContext(ctx, common.CorrelationID))
 	w.Header().Set(common.ContentType, contentType)
 	w.WriteHeader(statusCode)
 }
@@ -67,7 +72,7 @@ func NewBaseResponse(apiVersion, requestId, message string, statusCode int) Base
 
 // WriteErrorResponse writes Http header, encode error response with JSON format and writes to the HTTP response.
 func WriteErrorResponse(w *echo.Response, ctx context.Context, lc log.Logger, err errors.Error, apiVersion, requestId string) error {
-	correlationId := handlers.FromContext(ctx)
+	correlationId := FromContext(ctx, common.CorrelationID)
 	if err.Kind() == string(errors.KindServiceUnavailable) {
 		lc.Warn(err.Message())
 	} else if err.Kind() != string(errors.KindEntityDoesNotExist) {
@@ -108,7 +113,7 @@ func EncodeAndWriteResponse(i any, w *echo.Response, lc log.Logger) error {
 	return nil
 }
 
-func EncodeAndWriteYamlResponse(i interface{}, w *echo.Response, lc log.Logger) error {
+func EncodeAndWriteYamlResponse(i any, w *echo.Response, lc log.Logger) error {
 	enc := yaml.NewEncoder(w)
 	err := enc.Encode(i)
 
@@ -262,4 +267,156 @@ func checkValueRange(name string, value, min, max int) errors.Error {
 	}
 
 	return nil
+}
+
+// PutRequest makes the put JSON request and return the body
+func PutRequest(
+	ctx context.Context,
+	returnValuePointer any,
+	baseUrl string, requestPath string,
+	requestParams url.Values,
+	data any, authInjector interfaces.AuthenticationInjector) error {
+
+	req, err := CreateRequestWithRawData(ctx, http.MethodPut, baseUrl, requestPath, requestParams, data)
+	if err != nil {
+		return err
+	}
+
+	return processRequest(ctx, returnValuePointer, req, authInjector)
+}
+
+// processRequest is a helper function to process the request and get the return value
+func processRequest(ctx context.Context,
+	returnValuePointer any, req *http.Request, authInjector interfaces.AuthenticationInjector) error {
+	resp, err := SendRequest(ctx, req, authInjector)
+	if err != nil {
+		return err
+	}
+	// Check the response content length to avoid json unmarshal error
+	if len(resp) == 0 {
+		return nil
+	}
+	if err := json.Unmarshal(resp, returnValuePointer); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "failed to parse the response body", err)
+	}
+	return nil
+}
+
+func parseBaseUrlAndRequestPath(baseUrl, requestPath string) (*url.URL, error) {
+	fullPath, err := url.JoinPath(baseUrl, requestPath)
+	if err != nil {
+		return nil, err
+	}
+	return url.Parse(fullPath)
+}
+
+// correlatedId gets Correlation ID from supplied context. If no Correlation ID header is
+// present in the supplied context, one will be created along with a value.
+func correlatedId(ctx context.Context) string {
+	correlation := FromContext(ctx, common.CorrelationHeader)
+	if len(correlation) == 0 {
+		correlation = uuid.New().String()
+	}
+	return correlation
+}
+
+// FromContext allows for the retrieval of the specified key's value from the supplied Context.
+// If the value is not found, an empty string is returned.
+func FromContext(ctx context.Context, key string) string {
+	hdr, ok := ctx.Value(key).(string)
+	if !ok {
+		hdr = ""
+	}
+	return hdr
+}
+
+// SendRequest will make a request with raw data to the specified URL.
+// It returns the body as a byte array if successful and an error otherwise.
+func SendRequest(ctx context.Context, req *http.Request, authInjector interfaces.AuthenticationInjector) ([]byte, error) {
+	resp, err := makeRequest(req, authInjector)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, err := getBody(resp)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode <= http.StatusMultiStatus {
+		return bodyBytes, nil
+	}
+
+	var errMsg string
+	var errResp models.BaseResponse
+	// If the bodyBytes can be unmarshalled to BaseResponse DTO, use the BaseResponse.Message field as the error message
+	// Otherwise, use the whole bodyBytes string as the error message
+	baseRespErr := json.Unmarshal(bodyBytes, &errResp)
+	if baseRespErr == nil {
+		errMsg = errResp.Message
+	} else {
+		errMsg = string(bodyBytes)
+	}
+
+	// Handle error response
+	msg := fmt.Sprintf("request failed, status code: %d, err: %s", resp.StatusCode, errMsg)
+	return bodyBytes, echo.NewHTTPError(resp.StatusCode, msg)
+}
+
+// Helper method to make the request and return the response
+func makeRequest(req *http.Request, authInjector interfaces.AuthenticationInjector) (*http.Response, error) {
+	if authInjector != nil {
+		if err := authInjector.AddAuthenticationData(req); err != nil {
+			return nil, err
+		}
+	}
+
+	client := &http.Client{}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, echo.NewHTTPError(http.StatusServiceUnavailable, "failed to send a http request", err)
+	}
+	if resp == nil {
+		return nil, echo.NewHTTPError(http.StatusInternalServerError, "the response should not be a nil")
+	}
+	return resp, nil
+}
+
+// Helper method to get the body from the response after making the request
+func getBody(resp *http.Response) ([]byte, error) {
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return body, echo.NewHTTPError(http.StatusRequestedRangeNotSatisfiable, "failed to read the response body", err)
+	}
+	return body, nil
+}
+
+func CreateRequestWithRawData(ctx context.Context, httpMethod string, baseUrl string, requestPath string, requestParams url.Values, data any) (*http.Request, error) {
+	u, err := parseBaseUrlAndRequestPath(baseUrl, requestPath)
+	if err != nil {
+		return nil, echo.NewHTTPError(http.StatusInternalServerError, "failed to parse baseUrl and requestPath", err)
+	}
+	if requestParams != nil {
+		u.RawQuery = requestParams.Encode()
+	}
+
+	jsonEncodedData, err := json.Marshal(data)
+	if err != nil {
+		return nil, echo.NewHTTPError(http.StatusBadRequest, "failed to encode input data to JSON", err)
+	}
+
+	content := FromContext(ctx, common.ContentType)
+	if content == "" {
+		content = common.ContentTypeJSON
+	}
+
+	req, err := http.NewRequest(httpMethod, u.String(), bytes.NewReader(jsonEncodedData))
+	if err != nil {
+		return nil, echo.NewHTTPError(http.StatusInternalServerError, "failed to create a http request", err)
+	}
+	req.Header.Set(common.ContentType, content)
+	req.Header.Set(common.CorrelationHeader, correlatedId(ctx))
+	return req, nil
 }

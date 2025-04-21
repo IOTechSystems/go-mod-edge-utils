@@ -5,8 +5,8 @@
 package rest
 
 import (
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/di"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/errors"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/di"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/errors"
 )
 
 // HTTPSender is the interface for http requests

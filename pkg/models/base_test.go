@@ -14,7 +14,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/common"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/common"
 	"github.com/stretchr/testify/assert"
 )
 

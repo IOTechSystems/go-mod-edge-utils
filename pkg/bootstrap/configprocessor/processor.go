@@ -25,14 +25,14 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/container"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/environment"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/flags"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/interfaces"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/startup"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/utils"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/di"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/container"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/environment"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/flags"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/interfaces"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/startup"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/utils"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/di"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log"
 )
 
 const (
@@ -78,7 +78,7 @@ func NewProcessor(
 func (cp *Processor) Process(
 	serviceType string,
 	serviceConfig interfaces.Configuration,
-	secretProvider interfaces.SecretProviderExt) error {
+	secretProvider interfaces.SecretProvider) error {
 
 	if err := cp.loadFromFile(serviceConfig, "service"); err != nil {
 		return err

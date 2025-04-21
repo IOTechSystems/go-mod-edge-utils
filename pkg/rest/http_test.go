@@ -16,11 +16,11 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/container"
-	secretProviderMocks "github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/interfaces/mocks"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/common"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/di"
-	loggerMocks "github.com/IOTechSystems/go-mod-edge-utils/pkg/log/mocks"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/container"
+	secretProviderMocks "github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/interfaces/mocks"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/common"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/di"
+	loggerMocks "github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log/mocks"
 )
 
 const (

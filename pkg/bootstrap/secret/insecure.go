@@ -1,6 +1,6 @@
 /*******************************************************************************
  * Copyright 2020-2023 Intel Corporation
- * Copyright 2023 IOTech Ltd.
+ * Copyright 2023-2025 IOTech Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -18,14 +18,14 @@ package secret
 import (
 	"errors"
 	"fmt"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/interfaces"
 	"strings"
 	"time"
 
-	gometrics "github.com/rcrowley/go-metrics"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/interfaces"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/di"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/di"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
+	gometrics "github.com/rcrowley/go-metrics"
 )
 
 // InsecureProvider implements the SecretProvider interface for insecure secrets

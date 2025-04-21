@@ -27,9 +27,9 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/container"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/startup"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/di"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/container"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/startup"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/di"
 )
 
 // HttpServer contains references to dependencies required by the http server implementation.

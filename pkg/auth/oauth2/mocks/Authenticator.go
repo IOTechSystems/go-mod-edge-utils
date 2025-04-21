@@ -5,9 +5,9 @@ package mocks
 import (
 	http "net/http"
 
-	errors "github.com/IOTechSystems/go-mod-edge-utils/pkg/errors"
+	errors "github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/errors"
 
-	jwt "github.com/IOTechSystems/go-mod-edge-utils/pkg/auth/jwt"
+	jwt "github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/auth/jwt"
 
 	mock "github.com/stretchr/testify/mock"
 
@@ -20,7 +20,7 @@ type Authenticator struct {
 }
 
 // Callback provides a mock function with given fields: _a0
-func (_m *Authenticator) Callback(_a0 func(interface{}) (*jwt.TokenDetails, errors.Error)) http.HandlerFunc {
+func (_m *Authenticator) Callback(_a0 func(any) (*jwt.TokenDetails, errors.Error)) http.HandlerFunc {
 	ret := _m.Called(_a0)
 
 	if len(ret) == 0 {
@@ -28,7 +28,7 @@ func (_m *Authenticator) Callback(_a0 func(interface{}) (*jwt.TokenDetails, erro
 	}
 
 	var r0 http.HandlerFunc
-	if rf, ok := ret.Get(0).(func(func(interface{}) (*jwt.TokenDetails, errors.Error)) http.HandlerFunc); ok {
+	if rf, ok := ret.Get(0).(func(func(any) (*jwt.TokenDetails, errors.Error)) http.HandlerFunc); ok {
 		r0 = rf(_a0)
 	} else {
 		if ret.Get(0) != nil {

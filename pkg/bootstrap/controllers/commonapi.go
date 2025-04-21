@@ -13,15 +13,15 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/mitchellh/mapstructure"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/container"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/handlers"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/interfaces"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/utils"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/common"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/di"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/errors"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/models"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/container"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/handlers"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/interfaces"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/utils"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/common"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/di"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/errors"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/models"
 )
 
 // CommonController controller for common REST APIs
@@ -36,8 +36,7 @@ type CommonController struct {
 
 func NewCommonController(dic *di.Container, r *echo.Echo, serviceName string, serviceVersion string) *CommonController {
 	logger := container.LoggerFrom(dic.Get)
-	secretProvider := container.SecretProviderExtFrom(dic.Get)
-	authenticationHook := handlers.AutoConfigAuthenticationFunc(secretProvider, logger)
+	authenticationHook := handlers.AutoConfigAuthenticationFunc(dic)
 	configuration := container.ConfigurationFrom(dic.Get)
 	c := CommonController{
 		dic:            dic,
@@ -57,8 +56,7 @@ func NewCommonController(dic *di.Container, r *echo.Echo, serviceName string, se
 
 func (c *CommonController) AddRoute(routePath string, handler echo.HandlerFunc, methods []string, authentication bool, middlewareFunc ...echo.MiddlewareFunc) {
 	if authentication {
-		secretProvider := container.SecretProviderExtFrom(c.dic.Get)
-		authenticationHook := handlers.AutoConfigAuthenticationFunc(secretProvider, c.logger)
+		authenticationHook := handlers.AutoConfigAuthenticationFunc(c.dic)
 		middlewareFunc = append(middlewareFunc, authenticationHook)
 	}
 	c.router.Match(methods, routePath, handler, middlewareFunc...)

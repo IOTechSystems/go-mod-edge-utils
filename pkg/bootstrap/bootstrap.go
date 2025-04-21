@@ -24,15 +24,15 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/configprocessor"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/container"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/environment"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/flags"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/interfaces"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/secret"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/startup"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/di"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/configprocessor"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/container"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/environment"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/flags"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/interfaces"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/secret"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/startup"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/di"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log"
 )
 
 // Deferred defines the signature of a function returned by RunAndReturnWaitGroup that should be executed via defer.
@@ -104,7 +104,7 @@ func RunAndReturnWaitGroup(
 
 	envVars := environment.NewVariables(logger)
 
-	var secretProvider interfaces.SecretProviderExt
+	var secretProvider interfaces.SecretProvider
 	if useSecretProvider {
 		secretProvider, err = secret.NewSecretProvider(serviceConfig, envVars, ctx, startupTimer, dic, serviceKey)
 		if err != nil {

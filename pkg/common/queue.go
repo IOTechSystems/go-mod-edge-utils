@@ -5,7 +5,7 @@
 package common
 
 import (
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/errors"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/errors"
 )
 
 // Queue is the interface for the queue

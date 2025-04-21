@@ -12,8 +12,8 @@ import (
 	"crypto/rsa"
 	"fmt"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/handlers/tls/seed"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/handlers/tls/seed"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log"
 )
 
 // generatePrivateKey creates a new RSA or EC based private key (sk)
@@ -44,7 +44,7 @@ func generatePrivateKey(certificateSeed seed.CertificateSeed, logger log.Logger)
 // dumpKeyPair output sk,pk keypair (RSA or EC) to console
 // !!! Debug only for obvious security reasons...
 // ----------------------------------------------------------
-func dumpKeyPair(key interface{}, logger log.Logger) {
+func dumpKeyPair(key any, logger log.Logger) {
 	switch key.(type) {
 	case *rsa.PrivateKey:
 		logger.Debug(fmt.Sprintf(">> RSA SK: %q", key))

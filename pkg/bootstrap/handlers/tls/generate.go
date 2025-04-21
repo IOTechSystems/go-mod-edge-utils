@@ -10,10 +10,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/handlers/tls/certificates"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/handlers/tls/seed"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/errors"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/handlers/tls/certificates"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/handlers/tls/seed"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/errors"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log"
 )
 
 const (

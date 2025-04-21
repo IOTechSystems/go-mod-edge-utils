@@ -25,9 +25,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/utils"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/common"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/utils"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/common"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log"
 )
 
 const (

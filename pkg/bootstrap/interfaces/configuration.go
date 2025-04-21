@@ -16,7 +16,7 @@
 
 package interfaces
 
-import "github.com/IOTechSystems/go-mod-edge-utils/pkg/bootstrap/config"
+import "github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/config"
 
 // Configuration interface provides an abstraction around a configuration struct.
 type Configuration interface {
@@ -29,7 +29,4 @@ type Configuration interface {
 
 	// GetInsecureSecrets gets the config.InsecureSecrets field from the configuration struct.
 	GetInsecureSecrets() config.InsecureSecrets
-
-	// GetMqtt5Configs gets the config.Mqtt5Configs from the configuration struct.
-	GetMqtt5Configs() config.Mqtt5Configs
 }

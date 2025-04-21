@@ -9,14 +9,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/models"
-	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
 	"net/http"
 	"time"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/common"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/common"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/models"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/rest"
+
+	"github.com/google/uuid"
+	"github.com/labstack/echo/v4"
 )
 
 func ManageHeader(next echo.HandlerFunc) echo.HandlerFunc {
@@ -47,7 +49,7 @@ func LoggingMiddleware(logger log.Logger) echo.MiddlewareFunc {
 			if logger.LogLevel() == log.TraceLog {
 				r := c.Request()
 				begin := time.Now()
-				correlationId := FromContext(r.Context())
+				correlationId := rest.FromContext(r.Context(), common.CorrelationID)
 				logger.Trace("Begin request", common.CorrelationID, correlationId, "path", r.URL.Path)
 				err := next(c)
 				if err != nil {
@@ -60,14 +62,6 @@ func LoggingMiddleware(logger log.Logger) echo.MiddlewareFunc {
 			return next(c)
 		}
 	}
-}
-
-func FromContext(ctx context.Context) string {
-	hdr, ok := ctx.Value(common.CorrelationID).(string)
-	if !ok {
-		hdr = ""
-	}
-	return hdr
 }
 
 // RequestLimitMiddleware is a middleware function that limits the request body size to Service.MaxRequestSize in kilobytes

@@ -12,9 +12,9 @@ import (
 	"golang.org/x/oauth2"
 	"net/http"
 
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/auth/jwt"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/errors"
-	"github.com/IOTechSystems/go-mod-edge-utils/pkg/log"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/auth/jwt"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/errors"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log"
 )
 
 type AuthentikAuthenticator struct {
