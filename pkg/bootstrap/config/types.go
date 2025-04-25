@@ -108,6 +108,7 @@ type InsecureSecretsInfo struct {
 
 // BootstrapConfiguration defines the configuration elements required by the bootstrap.
 type BootstrapConfiguration struct {
+	Clients *ClientsCollection
 	Service *ServiceInfo
 }
 

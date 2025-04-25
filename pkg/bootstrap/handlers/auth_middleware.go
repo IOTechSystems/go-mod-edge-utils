@@ -69,12 +69,12 @@ func AuthenticationHandlerFunc(dic *di.Container) echo.MiddlewareFunc {
 				parsedToken, _, jwtErr := parser.ParseUnverified(token, &jwt.MapClaims{})
 				if jwtErr != nil {
 					w.Committed = false
-					return echo.NewHTTPError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
+					return echo.NewHTTPError(http.StatusUnauthorized, jwtErr)
 				}
 				issuer, jwtErr := parsedToken.Claims.GetIssuer()
 				if jwtErr != nil {
 					w.Committed = false
-					return echo.NewHTTPError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
+					return echo.NewHTTPError(http.StatusUnauthorized, jwtErr)
 				}
 
 				var err error
@@ -85,7 +85,7 @@ func AuthenticationHandlerFunc(dic *di.Container) echo.MiddlewareFunc {
 					err = headers.VerifyJWT(token, issuer, parsedToken.Method.Alg(), dic, r.Context())
 				}
 				if err != nil {
-					return echo.NewHTTPError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
+					return echo.NewHTTPError(http.StatusUnauthorized, err)
 				} else {
 					return next(c)
 				}
@@ -94,7 +94,7 @@ func AuthenticationHandlerFunc(dic *di.Container) echo.MiddlewareFunc {
 			lc.Errorf("%v", err)
 			// set Response.Committed to true in order to rewrite the status code
 			w.Committed = false
-			return echo.NewHTTPError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
+			return echo.NewHTTPError(http.StatusUnauthorized, err)
 		}
 	}
 }

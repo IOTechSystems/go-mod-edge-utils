@@ -12,17 +12,6 @@ import (
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/common"
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/models"
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/rest"
-	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/secrets"
-)
-
-const (
-	ApiTokenRoute = secrets.ApiBase + "/" + Token
-)
-
-// Constants related to the security-secretstore-setup service
-const (
-	EntityId = "entityId"
-	Token    = "token"
 )
 
 type SecretStoreTokenClient struct {
@@ -46,7 +35,7 @@ func (ac *SecretStoreTokenClient) RegenToken(ctx context.Context, entityId strin
 		return response, err
 	}
 
-	path := common.NewPathBuilder().SetPath(ApiTokenRoute).SetPath(EntityId).SetPath(entityId).BuildPath()
+	path := common.NewPathBuilder().SetPath(common.EdgeXApiTokenRoute).SetPath(common.EntityId).SetPath(entityId).BuildPath()
 	err = rest.PutRequest(ctx, &response, baseUrl, path, nil, nil, ac.authInjector)
 	if err != nil {
 		return response, err

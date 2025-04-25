@@ -38,3 +38,23 @@ const (
 	ClientMonitorDefault = 15000              // Defaults the interval at which a given service client will refresh its endpoint from the Registry, if used
 	CorrelationHeader    = "X-Correlation-ID" // Sets the key of the Correlation ID HTTP header
 )
+
+// constants related to the EdgeX API
+const (
+	EdgeXApiBase       = "/api/v3"
+	EdgeXApiKeyRoute   = EdgeXApiBase + "/key"
+	EdgeXApiTokenRoute = EdgeXApiBase + "/" + Token
+)
+
+// Constants related to the security-proxy-auth service
+const (
+	VerificationKeyType         = "verification"
+	Issuer                      = "issuer"
+	SecurityProxyAuthServiceKey = "security-proxy-auth"
+)
+
+// Constants related to the security-secretstore-setup service
+const (
+	EntityId = "entityId"
+	Token    = "token"
+)

@@ -269,6 +269,16 @@ func checkValueRange(name string, value, min, max int) errors.Error {
 	return nil
 }
 
+// GetRequest makes the get request and return the body
+func GetRequest(ctx context.Context, returnValuePointer interface{}, baseUrl string, requestPath string, requestParams url.Values, authInjector interfaces.AuthenticationInjector) error {
+	req, err := CreateRequest(ctx, http.MethodGet, baseUrl, requestPath, requestParams)
+	if err != nil {
+		return err
+	}
+
+	return processRequest(ctx, returnValuePointer, req, authInjector)
+}
+
 // PutRequest makes the put JSON request and return the body
 func PutRequest(
 	ctx context.Context,
@@ -362,6 +372,22 @@ func SendRequest(ctx context.Context, req *http.Request, authInjector interfaces
 	// Handle error response
 	msg := fmt.Sprintf("request failed, status code: %d, err: %s", resp.StatusCode, errMsg)
 	return bodyBytes, echo.NewHTTPError(resp.StatusCode, msg)
+}
+
+func CreateRequest(ctx context.Context, httpMethod string, baseUrl string, requestPath string, requestParams url.Values) (*http.Request, error) {
+	u, err := parseBaseUrlAndRequestPath(baseUrl, requestPath)
+	if err != nil {
+		return nil, echo.NewHTTPError(http.StatusInternalServerError, "failed to parse baseUrl and requestPath", err)
+	}
+	if requestParams != nil {
+		u.RawQuery = requestParams.Encode()
+	}
+	req, err := http.NewRequest(httpMethod, u.String(), nil)
+	if err != nil {
+		return nil, echo.NewHTTPError(http.StatusInternalServerError, "failed to create a http request", err)
+	}
+	req.Header.Set(common.CorrelationHeader, correlatedId(ctx))
+	return req, nil
 }
 
 // Helper method to make the request and return the response
