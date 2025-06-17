@@ -26,16 +26,24 @@ func NewManager(lc log.Logger) *Manager {
 	}
 }
 
-// GetBroadcaster retrieves a broadcaster for the specified topic or creates a new one if it doesn't exist.
-func (m *Manager) GetBroadcaster(topic string) (b *Broadcaster, isNew bool) {
+// GetBroadcaster retrieves a broadcaster for the specified topic.
+func (m *Manager) GetBroadcaster(topic string) (b *Broadcaster, ok bool) {
 	m.mu.RLock()
-	b, ok := m.broadcasters[topic]
+	b, ok = m.broadcasters[topic]
 	m.mu.RUnlock()
 
 	if ok {
-		isNew = true
 		m.lc.Debugf("sse: Broadcaster with topic '%s' found", topic)
-		return b, isNew
+		return b, ok
+	}
+
+	return nil, false
+}
+
+// CreateOrGetBroadcaster retrieves a broadcaster for the specified topic or creates a new one if it doesn't exist.
+func (m *Manager) CreateOrGetBroadcaster(topic string) (b *Broadcaster, isNew bool) {
+	if b, ok := m.GetBroadcaster(topic); ok {
+		return b, false
 	}
 
 	m.mu.Lock()
@@ -47,7 +55,7 @@ func (m *Manager) GetBroadcaster(topic string) (b *Broadcaster, isNew bool) {
 		m.RemoveBroadcaster(topic)
 	})
 	m.broadcasters[topic] = b
-	return b, false
+	return b, true
 }
 
 // RemoveBroadcaster removes a broadcaster for the specified topic.
