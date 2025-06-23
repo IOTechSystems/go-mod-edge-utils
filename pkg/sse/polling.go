@@ -39,9 +39,9 @@ func (p *Polling) Start(publisher Publisher) {
 	p.wg.Add(1)
 	go func() {
 		defer p.wg.Done()
-		p.poll(publisher)
+		p.pollingAndPublish(publisher)
 	}()
-	p.lc.Debugf("sse: Polling started with interval %v", p.interval)
+	p.lc.Debugf("sse polling: Polling started with interval %v", p.interval)
 }
 
 // Stop gracefully stops the polling mechanism. It cancels the context and waits for the polling goroutine to finish.
@@ -50,26 +50,32 @@ func (p *Polling) Stop() error {
 		p.cancel()
 	}
 	p.wg.Wait()
-	p.lc.Debug("sse: Polling stopped")
+	p.lc.Debug("sse polling: Polling stopped")
 	return nil
 }
 
-func (p *Polling) poll(publisher Publisher) {
+func (p *Polling) pollingAndPublish(publisher Publisher) {
+	doPollAndPublish := func() {
+		data, err := p.pollingFunc(p.ctx)
+		if err != nil {
+			p.lc.Errorf("sse polling: Failed to fetch data: %v", err)
+			return
+		}
+		publisher.Publish(data)
+	}
+
+	// Initial poll to fetch data immediately before starting the ticker
+	doPollAndPublish()
+
 	ticker := time.NewTicker(p.interval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
-			data, err := p.pollingFunc(p.ctx)
-			if err != nil {
-				p.lc.Errorf("sse: Failed to fetch data: %v", err)
-				continue
-			}
-			publisher.Publish(data)
-
+			doPollAndPublish()
 		case <-p.ctx.Done():
-			p.lc.Debug("sse: Polling context cancelled")
+			p.lc.Debug("sse polling: Polling context cancelled")
 			return
 		}
 	}

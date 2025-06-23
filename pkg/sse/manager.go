@@ -5,7 +5,9 @@
 package sse
 
 import (
+	"context"
 	"sync"
+	"time"
 
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log"
 )
@@ -13,17 +15,34 @@ import (
 // Manager manages multiple broadcasters for different topics.
 type Manager struct {
 	// broadcasters hold a map of topic names to their corresponding broadcasters.
-	broadcasters map[string]*Broadcaster
-	mu           sync.RWMutex
-	lc           log.Logger
+	broadcasters      map[string]*Broadcaster
+	mu                sync.RWMutex
+	lc                log.Logger
+	heartbeatInterval time.Duration
+
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 // NewManager creates a new SSE Manager instance.
-func NewManager(lc log.Logger) *Manager {
-	return &Manager{
-		broadcasters: make(map[string]*Broadcaster),
-		lc:           lc,
+func NewManager(ctx context.Context, lc log.Logger, heartbeatInterval time.Duration) *Manager {
+	ctx, cancel := context.WithCancel(ctx)
+
+	manager := &Manager{
+		broadcasters:      make(map[string]*Broadcaster),
+		lc:                lc,
+		ctx:               ctx,
+		cancel:            cancel,
+		heartbeatInterval: heartbeatInterval,
 	}
+
+	// Gracefully shutdown the SSE manager when the main context is done
+	go func() {
+		<-ctx.Done()
+		manager.Shutdown()
+	}()
+
+	return manager
 }
 
 // GetBroadcaster retrieves a broadcaster for the specified topic.
@@ -65,4 +84,8 @@ func (m *Manager) RemoveBroadcaster(topic string) {
 
 	delete(m.broadcasters, topic)
 	m.lc.Debugf("sse: Broadcaster of topic '%s' has been removed", topic)
+}
+
+func (m *Manager) Shutdown() {
+	m.cancel()
 }

@@ -5,12 +5,16 @@
 package sse
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/labstack/echo/v4"
 )
+
+const defaultHeartbeatInterval = 30 * time.Second
 
 // Handler creates an SSE handler that listens for messages on a specific topic and sends the data to the client.
 // It can be configured with options such as a PollingService to periodically fetch data and publish it to subscribers.
@@ -35,7 +39,7 @@ func Handler(m *Manager, opts ...HandlerOption) echo.HandlerFunc {
 			b.StartPolling()
 		}
 
-		return HandleSSE(c, b)
+		return HandleSSE(c, m.ctx, b, m.heartbeatInterval)
 	}
 }
 
@@ -51,7 +55,7 @@ func ConstructSSETopic(c echo.Context) string {
 
 // HandleSSE accepts an echo.Context and a Broadcaster (created by users), provides a more flexible way to handle Server-Sent Events (SSE) compared to the Handler function.
 // e.g., The users want to define their own SSE topics and use the broadcaster to publish messages to subscribers manually.
-func HandleSSE(c echo.Context, b *Broadcaster) error {
+func HandleSSE(c echo.Context, serviceCtx context.Context, b *Broadcaster, heartbeatInterval time.Duration) error {
 	ch := b.Subscribe()
 	defer b.Unsubscribe(ch)
 
@@ -60,6 +64,13 @@ func HandleSSE(c echo.Context, b *Broadcaster) error {
 	if f, ok := c.Response().Writer.(http.Flusher); ok {
 		f.Flush()
 	}
+
+	if heartbeatInterval <= 0 {
+		b.lc.Debug("sse: Heartbeat interval is not set or invalid, using default value: 30s")
+		heartbeatInterval = defaultHeartbeatInterval
+	}
+	heartbeatTicker := time.NewTicker(heartbeatInterval)
+	defer heartbeatTicker.Stop()
 
 	for {
 		select {
@@ -75,8 +86,18 @@ func HandleSSE(c echo.Context, b *Broadcaster) error {
 				return err
 			}
 			c.Response().Flush()
+		case <-heartbeatTicker.C:
+			_, err := fmt.Fprintf(c.Response().Writer, ":\n\n")
+			if err != nil {
+				b.lc.Warnf("sse: heartbeat write failed: %v", err)
+				return err
+			}
+			c.Response().Flush()
 		case <-c.Request().Context().Done():
-			b.lc.Debugf("sse: Request cancelled or timed out")
+			b.lc.Debug("sse: Request cancelled or timed out")
+			return nil
+		case <-serviceCtx.Done():
+			b.lc.Info("sse: Service shutting down, closing all SSE connection")
 			return nil
 		}
 	}
@@ -86,5 +107,4 @@ func setSSEHeaders(c echo.Context) {
 	c.Response().Header().Set(echo.HeaderContentType, "text/event-stream")
 	c.Response().Header().Set("Cache-Control", "no-cache")
 	c.Response().Header().Set("Connection", "keep-alive")
-	c.Response().Header().Set("Access-Control-Allow-Origin", "*")
 }
