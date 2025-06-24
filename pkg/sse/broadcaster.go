@@ -5,19 +5,30 @@
 package sse
 
 import (
-	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"sync"
+
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/common"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log"
 )
 
 // SubscriberCh is a channel type used for broadcasting messages.
 type SubscriberCh chan any
 
+type Subscriber struct {
+	ch    SubscriberCh
+	isNew bool
+}
+
 // Broadcaster manages a set of subscribers and broadcasts messages to them.
 type Broadcaster struct {
 	lc log.Logger
 	// subscribers hold the active subscribers.
-	subscribers map[SubscriberCh]struct{}
+	subscribers map[SubscriberCh]*Subscriber
 	mu          sync.RWMutex
+	lastHash    common.AtomicString
 
 	pollingService PollingService
 	onEmptyCb      func()
@@ -26,10 +37,12 @@ type Broadcaster struct {
 
 // NewBroadcaster creates a new instance of Broadcaster.
 func NewBroadcaster(lc log.Logger) *Broadcaster {
-	return &Broadcaster{
+	b := &Broadcaster{
 		lc:          lc,
-		subscribers: make(map[SubscriberCh]struct{}),
+		subscribers: make(map[SubscriberCh]*Subscriber),
 	}
+	b.lastHash.Set("")
+	return b
 }
 
 // SetPollingService sets the polling service for the broadcaster if auto-polling is required.
@@ -46,7 +59,10 @@ func (b *Broadcaster) SetOnEmptyCallback(f func()) {
 func (b *Broadcaster) Subscribe() SubscriberCh {
 	ch := make(SubscriberCh, 64)
 	b.mu.Lock()
-	b.subscribers[ch] = struct{}{}
+	b.subscribers[ch] = &Subscriber{
+		ch:    ch,
+		isNew: true,
+	}
 	b.mu.Unlock()
 	return ch
 }
@@ -78,13 +94,21 @@ func (b *Broadcaster) handleNoSubscribers() {
 
 // Publish sends data to all subscribers.
 func (b *Broadcaster) Publish(data any) {
+	shouldSend := b.shouldSendUpdate(data)
+
 	b.mu.RLock()
 	defer b.mu.RUnlock()
-	for ch := range b.subscribers {
-		select {
-		case ch <- data:
-		default: // if the channel is full, dropping to avoid blocking
-			b.lc.Warn("sse: Subscriber channel is full, dropping data")
+	for ch, s := range b.subscribers {
+		// Only send data to subscribers that are new or if the data has changed
+		if s.isNew || shouldSend {
+			select {
+			case ch <- data:
+				if s.isNew {
+					s.isNew = false // Mark the subscriber as no longer new after the first message
+				}
+			default: // if the channel is full, dropping to avoid blocking
+				b.lc.Warn("sse: Subscriber channel is full, dropping data")
+			}
 		}
 	}
 }
@@ -107,4 +131,17 @@ func (b *Broadcaster) StopPolling() error {
 		return nil
 	}
 	return b.pollingService.Stop()
+}
+
+func (b *Broadcaster) shouldSendUpdate(data any) bool {
+	bytes, err := json.Marshal(data)
+	if err != nil {
+		b.lc.Errorf("sse: Failed to marshal data for hash comparison: %v", err)
+		return false
+	}
+
+	hashBytes := sha256.Sum256(bytes)
+	newHashStr := hex.EncodeToString(hashBytes[:])
+
+	return b.lastHash.CompareAndSwap(newHashStr)
 }
