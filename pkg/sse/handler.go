@@ -26,8 +26,16 @@ func Handler(m *Manager, opts ...HandlerOption) echo.HandlerFunc {
 	}
 
 	return func(c echo.Context) error {
-		topic := ConstructSSETopic(c)
-		m.lc.Debugf("sse: Creating SSE handler for topic '%s'", topic)
+		var topic string
+		if config.CustomTopic != "" {
+			// If a custom topic is provided, use it directly.
+			m.lc.Debugf("sse: Creating SSE handler for custom topic '%s'", config.CustomTopic)
+			topic = config.CustomTopic
+		} else {
+			// Construct the topic based on the request context.
+			topic = ConstructSSETopic(c)
+			m.lc.Debugf("sse: Creating SSE handler for topic '%s'", topic)
+		}
 
 		b, isNew := m.CreateOrGetBroadcaster(topic)
 		// Only set the PollingService if it is provided in the configuration and the broadcaster is new.
@@ -39,7 +47,7 @@ func Handler(m *Manager, opts ...HandlerOption) echo.HandlerFunc {
 			b.StartPolling()
 		}
 
-		return HandleSSE(c, m.ctx, b, m.heartbeatInterval)
+		return handleSSE(c, m.ctx, b, m.heartbeatInterval)
 	}
 }
 
@@ -53,9 +61,7 @@ func ConstructSSETopic(c echo.Context) string {
 	return c.Path() + "?" + c.QueryString()
 }
 
-// HandleSSE accepts an echo.Context and a Broadcaster (created by users), provides a more flexible way to handle Server-Sent Events (SSE) compared to the Handler function.
-// e.g., The users want to define their own SSE topics and use the broadcaster to publish messages to subscribers manually.
-func HandleSSE(c echo.Context, serviceCtx context.Context, b *Broadcaster, heartbeatInterval time.Duration) error {
+func handleSSE(c echo.Context, serviceCtx context.Context, b *Broadcaster, heartbeatInterval time.Duration) error {
 	ch := b.Subscribe()
 	defer b.Unsubscribe(ch)
 
