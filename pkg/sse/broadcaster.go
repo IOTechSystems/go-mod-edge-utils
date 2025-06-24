@@ -140,14 +140,19 @@ func (b *Broadcaster) shouldSendUpdate(data any) bool {
 		return false
 	}
 
-	sum := sha256.Sum256(bytes)
-	newHash := hex.EncodeToString(sum[:])
+	hashBytes := sha256.Sum256(bytes)
+	newHashStr := hex.EncodeToString(hashBytes[:])
 
-	oldHash := b.lastHash.Load().(string)
-	if oldHash == newHash {
-		return false
+	// Use for loop with CompareAndSwap to ensure atomicity
+	for {
+		old := b.lastHash.Load()
+		oldStr, _ := old.(string)
+		if oldStr == newHashStr {
+			return false
+		}
+
+		if b.lastHash.CompareAndSwap(oldStr, newHashStr) {
+			return true
+		}
 	}
-
-	b.lastHash.Store(newHash)
-	return true
 }
