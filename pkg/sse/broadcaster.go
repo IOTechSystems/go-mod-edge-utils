@@ -9,8 +9,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"sync"
-	"sync/atomic"
 
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/common"
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log"
 )
 
@@ -28,7 +28,7 @@ type Broadcaster struct {
 	// subscribers hold the active subscribers.
 	subscribers map[SubscriberCh]*Subscriber
 	mu          sync.RWMutex
-	lastHash    atomic.Value
+	lastHash    common.AtomicString
 
 	pollingService PollingService
 	onEmptyCb      func()
@@ -41,7 +41,7 @@ func NewBroadcaster(lc log.Logger) *Broadcaster {
 		lc:          lc,
 		subscribers: make(map[SubscriberCh]*Subscriber),
 	}
-	b.lastHash.Store("")
+	b.lastHash.Set("")
 	return b
 }
 
@@ -143,16 +143,5 @@ func (b *Broadcaster) shouldSendUpdate(data any) bool {
 	hashBytes := sha256.Sum256(bytes)
 	newHashStr := hex.EncodeToString(hashBytes[:])
 
-	// Use for loop with CompareAndSwap to ensure atomicity
-	for {
-		old := b.lastHash.Load()
-		oldStr, _ := old.(string)
-		if oldStr == newHashStr {
-			return false
-		}
-
-		if b.lastHash.CompareAndSwap(oldStr, newHashStr) {
-			return true
-		}
-	}
+	return b.lastHash.CompareAndSwap(newHashStr)
 }
