@@ -56,9 +56,9 @@ func Handler(m *Manager, opts ...HandlerOption) echo.HandlerFunc {
 // e.g. "/api/v3/device/all/sse?offset=10&labels=label1,label2"
 func ConstructSSETopic(c echo.Context) string {
 	if c.QueryString() == "" {
-		return c.Path()
+		return c.Request().URL.Path
 	}
-	return c.Path() + "?" + c.QueryString()
+	return c.Request().URL.Path + "?" + c.QueryString()
 }
 
 func handleSSE(c echo.Context, serviceCtx context.Context, b *Broadcaster, heartbeatInterval time.Duration) error {
