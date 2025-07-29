@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -39,19 +38,6 @@ const (
 	configPathSeparator = "/"
 	configNameSeparator = "-"
 	envNameSeparator    = "_"
-
-	// insecureSecretsRegexStr is a regex to look for toml keys that are under the Secrets sub-key of values within the
-	// Writable.InsecureSecrets topology.
-	// Examples:
-	//			Matches: Writable.InsecureSecrets.credentials001.Secrets.password
-	//	 Does Not Match: Writable.InsecureSecrets.credentials001.Path
-	insecureSecretsRegexStr = "^InsecureSecrets\\.[^.]+\\.secretData\\..+$" //#nosec G101 -- This is a false positive
-	// redactedStr is the value to print for redacted variable values
-	redactedStr = "<redacted>"
-)
-
-var (
-	insecureSecretsRegex = regexp.MustCompile(insecureSecretsRegexStr)
 )
 
 // Variables is a receiver that holds Variables and encapsulates toml.Tree-based configuration field
@@ -142,7 +128,7 @@ func (e *Variables) OverrideConfigMapValues(configMap map[string]any) (int, erro
 
 		setConfigMapValue(path, newValue, configMap)
 		overrideCount++
-		logEnvironmentOverride(e.logger, path, envVar, envValue)
+		logEnvironmentOverride(e.logger, path, envVar)
 	}
 
 	return overrideCount, nil
@@ -316,7 +302,7 @@ func GetStartupInfo(serviceKey string) StartupInfo {
 	// Get the startup timer configuration from environment, if provided.
 	value := os.Getenv(common.EnvKeyStartupDuration)
 	if len(value) > 0 {
-		logEnvironmentOverride(logger, "Startup Duration", common.EnvKeyStartupDuration, value)
+		logEnvironmentOverride(logger, "Startup Duration", common.EnvKeyStartupDuration)
 
 		if n, err := strconv.ParseInt(value, 10, 0); err == nil && n > 0 {
 			startup.Duration = int(n)
@@ -326,7 +312,7 @@ func GetStartupInfo(serviceKey string) StartupInfo {
 	// Get the startup timer interval, if provided.
 	value = os.Getenv(common.EnvKeyStartupInterval)
 	if len(value) > 0 {
-		logEnvironmentOverride(logger, "Startup Interval", common.EnvKeyStartupInterval, value)
+		logEnvironmentOverride(logger, "Startup Interval", common.EnvKeyStartupInterval)
 
 		if n, err := strconv.ParseInt(value, 10, 0); err == nil && n > 0 {
 			startup.Interval = int(n)
@@ -342,7 +328,7 @@ func GetConfigDir(logger log.Logger, configDir string) string {
 	envValue := os.Getenv(common.EnvKeyConfigDir)
 	if len(envValue) > 0 {
 		configDir = envValue
-		logEnvironmentOverride(logger, "-cd/-configDir", common.EnvKeyConfigDir, envValue)
+		logEnvironmentOverride(logger, "-cd/-configDir", common.EnvKeyConfigDir)
 	}
 
 	if len(configDir) == 0 {
@@ -358,7 +344,7 @@ func GetConfigFileName(logger log.Logger, configFileName string) string {
 	envValue := os.Getenv(common.EnvKeyConfigFile)
 	if len(envValue) > 0 {
 		configFileName = envValue
-		logEnvironmentOverride(logger, "-cf/--configFile", common.EnvKeyConfigFile, envValue)
+		logEnvironmentOverride(logger, "-cf/--configFile", common.EnvKeyConfigFile)
 	}
 
 	if len(configFileName) == 0 {
@@ -381,11 +367,6 @@ func parseCommaSeparatedSlice(value string) (values []any) {
 }
 
 // logEnvironmentOverride logs that an option or configuration has been override by an environment variable.
-// If the key belongs to a Secret within Writable.InsecureSecrets, the value is redacted when printing it.
-func logEnvironmentOverride(logger log.Logger, name string, key string, value string) {
-	valueStr := value
-	if insecureSecretsRegex.MatchString(name) {
-		valueStr = redactedStr
-	}
-	logger.Infof("Variables override of '%s' by environment variable: %s=%s", name, key, valueStr)
+func logEnvironmentOverride(logger log.Logger, name string, key string) {
+	logger.Infof("Variables override of '%s' by environment variable: %s", name, key)
 }
