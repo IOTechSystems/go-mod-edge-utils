@@ -19,7 +19,6 @@ package environment
 import (
 	"os"
 	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -197,65 +196,6 @@ func TestConvertToType(t *testing.T) {
 	}
 }
 
-func TestLogEnvironmentOverride(t *testing.T) {
-	tests := []struct {
-		name     string
-		path     string
-		value    string
-		redacted bool
-	}{
-		{
-			name:     "basic variable - not redacted",
-			path:     "LogLevel",
-			value:    "DEBUG",
-			redacted: false,
-		},
-		{
-			name:     "insecure secret value - redacted",
-			path:     "InsecureSecrets.credentials001.secretData.password",
-			value:    "HelloWorld!",
-			redacted: true,
-		},
-		{
-			name:     "insecure secret value - redacted 2",
-			path:     "InsecureSecrets.credentials001.secretData.username",
-			value:    "admin",
-			redacted: true,
-		},
-		{
-			name:     "insecure secret name - not redacted",
-			path:     "InsecureSecrets.credentials001.secretName",
-			value:    "credentials001",
-			redacted: false,
-		},
-	}
-
-	mockLogger := &loggerMocks.Logger{}
-
-	for _, test := range tests {
-		test := test
-		t.Run(test.name, func(t *testing.T) {
-			key := strings.ReplaceAll(strings.ToUpper(test.path), ".", "_")
-
-			// specifically expect the method to be called with the values we pass in plus the format string
-			// and any value (can be redacted or not)
-			mockLogger.On("Infof", mock.AnythingOfType("string"),
-				test.path, key, mock.AnythingOfType("string")).Return().Once()
-
-			logEnvironmentOverride(mockLogger, test.path, key, test.value)
-
-			mockLogger.AssertExpectations(t)
-			if test.redacted {
-				// make sure it was called with the redacted placeholder string.
-				mockLogger.AssertCalled(t, "Infof", mock.AnythingOfType("string"), test.path, key, redactedStr)
-			} else {
-				// make sure the original value was logged.
-				mockLogger.AssertCalled(t, "Infof", mock.AnythingOfType("string"), test.path, key, test.value)
-			}
-		})
-	}
-}
-
 func TestOverrideConfigMapValues(t *testing.T) {
 	flatMap := map[string]any{
 		"top":             "top value",
@@ -297,10 +237,10 @@ func TestOverrideConfigMapValues(t *testing.T) {
 			os.Setenv("MY_OTHER_VALUE", "89.12")
 
 			mockLogger := &loggerMocks.Logger{}
-			mockLogger.On("Infof", mock.Anything, "top", "TOP", "new top value")
-			mockLogger.On("Infof", mock.Anything, "some/value", "SOME_VALUE", "your string")
-			mockLogger.On("Infof", mock.Anything, "some/thing/here", "SOME_THING_HERE", "321")
-			mockLogger.On("Infof", mock.Anything, "my/other/value", "MY_OTHER_VALUE", "89.12")
+			mockLogger.On("Infof", mock.Anything, "top", "TOP")
+			mockLogger.On("Infof", mock.Anything, "some/value", "SOME_VALUE")
+			mockLogger.On("Infof", mock.Anything, "some/thing/here", "SOME_THING_HERE")
+			mockLogger.On("Infof", mock.Anything, "my/other/value", "MY_OTHER_VALUE")
 			target := NewVariables(mockLogger)
 
 			actualCount, err := target.OverrideConfigMapValues(test.ConfigMap)
