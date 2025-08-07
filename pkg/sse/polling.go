@@ -6,15 +6,21 @@ package sse
 
 import (
 	"context"
+	goErr "errors"
+	"net/http"
 	"sync"
 	"time"
 
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/common"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/errors"
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/rest"
 )
 
 // Polling is a struct that implements a polling mechanism for fetching data from a data source at regular intervals.
 // It is designed to be started once and can be stopped gracefully.
 type Polling struct {
+	apiVersion  string
 	interval    time.Duration
 	pollingFunc func(context.Context) (any, error)
 	lc          log.Logger
@@ -25,9 +31,24 @@ type Polling struct {
 }
 
 // NewPolling creates a new Polling instance with the specified interval and data source.
-func NewPolling(interval time.Duration, pollingFunc func(context.Context) (any, error), lc log.Logger) *Polling {
+func NewPolling(lc log.Logger, pollingFunc func(context.Context) (any, error), opts ...PollingOption) *Polling {
+	// Apply options to the PollingConfig if provided
+	config := &PollingConfig{}
+	for _, opt := range opts {
+		opt(config)
+	}
+
+	if config.ApiVersion == "" {
+		config.ApiVersion = common.ApiVersion
+	}
+
+	if config.interval == 0 {
+		config.interval = 5 * time.Second
+	}
+
 	return &Polling{
-		interval:    interval,
+		apiVersion:  config.ApiVersion,
+		interval:    config.interval,
 		pollingFunc: pollingFunc,
 		lc:          lc,
 	}
@@ -59,9 +80,10 @@ func (p *Polling) pollingAndPublish(publisher Publisher) {
 		data, err := p.pollingFunc(p.ctx)
 		if err != nil {
 			p.lc.Errorf("sse polling: Failed to fetch data: %v", err)
-			return
+			publisher.Publish(p.getErrorResponse(err))
+		} else {
+			publisher.Publish(data)
 		}
-		publisher.Publish(data)
 	}
 
 	// Initial poll to fetch data immediately before starting the ticker
@@ -79,4 +101,17 @@ func (p *Polling) pollingAndPublish(publisher Publisher) {
 			return
 		}
 	}
+}
+
+func (p *Polling) getErrorResponse(err error) rest.BaseResponse {
+	var (
+		e    errors.Error
+		code int
+	)
+	if goErr.As(err, &e) {
+		code = e.Code()
+	} else {
+		code = http.StatusInternalServerError
+	}
+	return rest.NewBaseResponse(p.apiVersion, "", err.Error(), code)
 }
