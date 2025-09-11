@@ -64,6 +64,8 @@ func (b *Broadcaster) Subscribe() SubscriberCh {
 		isNew: true,
 	}
 	b.mu.Unlock()
+
+	b.lc.Debugf("sse: Subscriber added, total=%d", len(b.subscribers))
 	return ch
 }
 
@@ -72,6 +74,8 @@ func (b *Broadcaster) Unsubscribe(ch SubscriberCh) {
 	b.mu.Lock()
 	delete(b.subscribers, ch)
 	close(ch)
+
+	b.lc.Debugf("sse: Subscriber removed, total=%d", len(b.subscribers))
 
 	if len(b.subscribers) == 0 {
 		go b.handleNoSubscribers()
@@ -108,6 +112,7 @@ func (b *Broadcaster) Publish(data any) {
 				}
 			default: // if the channel is full, dropping to avoid blocking
 				b.lc.Warn("sse: Subscriber channel is full, dropping data")
+				// TODO: We may consider to unsubscribe the channel if it is consistently full
 			}
 		}
 	}
