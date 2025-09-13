@@ -78,6 +78,13 @@ func handleSSE(c echo.Context, serviceCtx context.Context, b *Broadcaster, heart
 	heartbeatTicker := time.NewTicker(heartbeatInterval)
 	defer heartbeatTicker.Stop()
 
+	// Try to get the ResponseController to set write deadlines if supported by the underlying ResponseWriter
+	// This helps to detect broken connections more quickly
+	var rc *http.ResponseController
+	if ctrl := http.NewResponseController(c.Response().Writer); ctrl != nil {
+		rc = ctrl
+	}
+
 	for {
 		select {
 		case msg := <-ch:
@@ -86,17 +93,36 @@ func handleSSE(c echo.Context, serviceCtx context.Context, b *Broadcaster, heart
 				b.lc.Errorf("failed to serialize message: %v", err)
 				continue
 			}
+
+			// Set a write deadline to avoid blocking indefinitely on a slow or broken connection
+			if rc != nil {
+				if err := rc.SetWriteDeadline(time.Now().Add(heartbeatInterval)); err != nil {
+					b.lc.Errorf("sse: failed to set write deadline: %v", err)
+					return nil
+				}
+			}
+
 			_, err = fmt.Fprintf(c.Response().Writer, "data: %s\n\n", msgJSON)
 			if err != nil {
+				// Log the error and exit the loop to clean up the connection
 				b.lc.Errorf("failed to write message: %v", err)
-				return err
+				return nil
 			}
 			c.Response().Flush()
 		case <-heartbeatTicker.C:
+			// Set a write deadline to avoid blocking indefinitely on a slow or broken connection
+			if rc != nil {
+				if err := rc.SetWriteDeadline(time.Now().Add(heartbeatInterval)); err != nil {
+					b.lc.Errorf("sse: failed to set write deadline for hearbeat messsage: %v", err)
+					return nil
+				}
+			}
+
 			_, err := fmt.Fprintf(c.Response().Writer, ":\n\n")
 			if err != nil {
+				// Log the error and exit the loop to clean up the connection
 				b.lc.Warnf("sse: heartbeat write failed: %v", err)
-				return err
+				return nil
 			}
 			c.Response().Flush()
 		case <-c.Request().Context().Done():

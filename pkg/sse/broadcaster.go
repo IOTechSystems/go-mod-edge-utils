@@ -112,7 +112,6 @@ func (b *Broadcaster) Publish(data any) {
 				}
 			default: // if the channel is full, dropping to avoid blocking
 				b.lc.Warn("sse: Subscriber channel is full, dropping data")
-				// TODO: We may consider to unsubscribe the channel if it is consistently full
 			}
 		}
 	}
