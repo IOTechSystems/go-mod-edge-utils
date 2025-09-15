@@ -88,14 +88,11 @@ func handleSSE(c echo.Context, serviceCtx context.Context, b *Broadcaster, heart
 	heartbeatTicker := time.NewTicker(heartbeatInterval)
 	defer heartbeatTicker.Stop()
 
-	// Attempt to create a ResponseController so we can set write deadlines manually if supported.
+	// Create an ResponseController so we can set write deadlines manually.
 	// Write deadlines are applied to the underlying network connection (net.Conn) used by
 	// the ResponseWriter. If sending data to the client takes longer than the deadline,
 	// the write will fail, allowing us to detect broken or extremely slow connections sooner.
-	var rc *http.ResponseController
-	if ctrl := http.NewResponseController(c.Response().Writer); ctrl != nil {
-		rc = ctrl
-	}
+	rc := http.NewResponseController(c.Response().Writer)
 
 	for {
 		select {
@@ -108,11 +105,9 @@ func handleSSE(c echo.Context, serviceCtx context.Context, b *Broadcaster, heart
 
 			// Set a write deadline to avoid blocking indefinitely when writing
 			// to a slow or broken connection.
-			if rc != nil {
-				if err := rc.SetWriteDeadline(time.Now().Add(heartbeatInterval)); err != nil {
-					b.lc.Errorf("sse: failed to set write deadline: %v", err)
-					return nil
-				}
+			if err := rc.SetWriteDeadline(time.Now().Add(heartbeatInterval)); err != nil {
+				b.lc.Errorf("sse: failed to set write deadline or not supported: %v", err)
+				return nil
 			}
 
 			_, err = fmt.Fprintf(c.Response().Writer, "data: %s\n\n", msgJSON)
@@ -127,11 +122,9 @@ func handleSSE(c echo.Context, serviceCtx context.Context, b *Broadcaster, heart
 		case <-heartbeatTicker.C:
 			// Send a comment line as a heartbeat to keep the connection alive.
 			// Also set a write deadline to avoid blocking indefinitely.
-			if rc != nil {
-				if err := rc.SetWriteDeadline(time.Now().Add(heartbeatInterval)); err != nil {
-					b.lc.Errorf("sse: failed to set write deadline for hearbeat messsage: %v", err)
-					return nil
-				}
+			if err := rc.SetWriteDeadline(time.Now().Add(heartbeatInterval)); err != nil {
+				b.lc.Errorf("sse: failed to set write deadline or not supported for hearbeat messsage: %v", err)
+				return nil
 			}
 
 			_, err := fmt.Fprintf(c.Response().Writer, ":\n\n")
