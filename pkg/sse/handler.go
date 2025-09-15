@@ -65,12 +65,22 @@ func handleSSE(c echo.Context, serviceCtx context.Context, b *Broadcaster, heart
 	ch := b.Subscribe()
 	defer b.Unsubscribe(ch)
 
+	// Force any pending HTTP headers (such as "Content-Type: text/event-stream")
+	// to be sent immediately so the client knows this is an SSE stream.
+	// Without this, some servers or frameworks buffer headers by default,
+	// and some clients will not start processing events until the headers
+	// have actually been received.
 	setSSEHeaders(c)
-
 	if f, ok := c.Response().Writer.(http.Flusher); ok {
 		f.Flush()
+	} else {
+		// In normal Echo deployments, c.Response().Writer implements http.Flusher,
+		// so flushing will work. This check is mainly for tests or custom middlewares
+		// that may wrap the ResponseWriter without flushing support.
+		b.lc.Warn("sse: ResponseWriter does not support flushing, SSE may not work as expected")
 	}
 
+	// Fallback to the default heartbeat interval if it is unset or invalid.
 	if heartbeatInterval <= 0 {
 		b.lc.Debug("sse: Heartbeat interval is not set or invalid, using default value: 30s")
 		heartbeatInterval = defaultHeartbeatInterval
@@ -78,8 +88,10 @@ func handleSSE(c echo.Context, serviceCtx context.Context, b *Broadcaster, heart
 	heartbeatTicker := time.NewTicker(heartbeatInterval)
 	defer heartbeatTicker.Stop()
 
-	// Try to get the ResponseController to set write deadlines if supported by the underlying ResponseWriter
-	// This helps to detect broken connections more quickly
+	// Attempt to create a ResponseController so we can set write deadlines manually if supported.
+	// Write deadlines are applied to the underlying network connection (net.Conn) used by
+	// the ResponseWriter. If sending data to the client takes longer than the deadline,
+	// the write will fail, allowing us to detect broken or extremely slow connections sooner.
 	var rc *http.ResponseController
 	if ctrl := http.NewResponseController(c.Response().Writer); ctrl != nil {
 		rc = ctrl
@@ -94,7 +106,8 @@ func handleSSE(c echo.Context, serviceCtx context.Context, b *Broadcaster, heart
 				continue
 			}
 
-			// Set a write deadline to avoid blocking indefinitely on a slow or broken connection
+			// Set a write deadline to avoid blocking indefinitely when writing
+			// to a slow or broken connection.
 			if rc != nil {
 				if err := rc.SetWriteDeadline(time.Now().Add(heartbeatInterval)); err != nil {
 					b.lc.Errorf("sse: failed to set write deadline: %v", err)
@@ -104,13 +117,16 @@ func handleSSE(c echo.Context, serviceCtx context.Context, b *Broadcaster, heart
 
 			_, err = fmt.Fprintf(c.Response().Writer, "data: %s\n\n", msgJSON)
 			if err != nil {
-				// Log the error and exit the loop to clean up the connection
+				// If writing fails, log the error and close the connection.
 				b.lc.Errorf("failed to write message: %v", err)
 				return nil
 			}
+
 			c.Response().Flush()
+
 		case <-heartbeatTicker.C:
-			// Set a write deadline to avoid blocking indefinitely on a slow or broken connection
+			// Send a comment line as a heartbeat to keep the connection alive.
+			// Also set a write deadline to avoid blocking indefinitely.
 			if rc != nil {
 				if err := rc.SetWriteDeadline(time.Now().Add(heartbeatInterval)); err != nil {
 					b.lc.Errorf("sse: failed to set write deadline for hearbeat messsage: %v", err)
@@ -124,11 +140,16 @@ func handleSSE(c echo.Context, serviceCtx context.Context, b *Broadcaster, heart
 				b.lc.Warnf("sse: heartbeat write failed: %v", err)
 				return nil
 			}
+
 			c.Response().Flush()
+
 		case <-c.Request().Context().Done():
+			// The client cancelled the request or the context timed out.
 			b.lc.Debug("sse: Request cancelled or timed out")
 			return nil
+
 		case <-serviceCtx.Done():
+			// The server is shutting down; close all active SSE connections.
 			b.lc.Info("sse: Service shutting down, closing all SSE connection")
 			return nil
 		}
