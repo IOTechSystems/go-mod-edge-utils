@@ -71,7 +71,7 @@ func (q *memoryQueue[T]) Enqueue(item T) errors.Error {
 
 	if len(q.items) >= q.queueLimit {
 		logger.Tracef("Exceeded queue limit, drop the item: %v", item)
-		return errors.NewBaseError(errors.KindLimitExceeded, "Exceeded queue limit, drop the item", nil, nil)
+		return errors.NewBaseError(errors.KindLimitExceeded, "Exceeded queue limit, drop the item", nil)
 	}
 	q.items = append(q.items, item)
 

@@ -107,7 +107,7 @@ func TestGetTokenByUserIDWithTokenNotFound(t *testing.T) {
 	authenticator := newAuthentikAuthenticator()
 	_, err := authenticator.GetTokenByUserID(mockUserId)
 
-	assert.ErrorIs(t, err, errors.NewBaseError(errors.KindEntityDoesNotExist, fmt.Sprintf("token not found for the user %s", mockUserId), nil, nil))
+	assert.ErrorIs(t, err, errors.NewBaseError(errors.KindEntityDoesNotExist, fmt.Sprintf("token not found for the user %s", mockUserId), nil))
 }
 
 func TestGetTokenByUserID(t *testing.T) {
@@ -231,17 +231,17 @@ func mockHandleUserInfo(userInfo any, provider Provider) (token *jwt.TokenDetail
 	case Authentik:
 		_, ok := userInfo.(*AuthentikUserInfo)
 		if !ok {
-			return nil, errors.NewBaseError(errors.KindServerError, "failed to cast user info to AuthentikUserInfo", nil, nil)
+			return nil, errors.NewBaseError(errors.KindServerError, "failed to cast user info to AuthentikUserInfo", nil)
 		}
 	case Google:
 		_, ok := userInfo.(*GoogleUserInfo)
 		if !ok {
-			return nil, errors.NewBaseError(errors.KindServerError, "failed to cast user info to GoogleUserInfo", nil, nil)
+			return nil, errors.NewBaseError(errors.KindServerError, "failed to cast user info to GoogleUserInfo", nil)
 		}
 	case GitHub:
 		_, ok := userInfo.(*GitHubUserInfo)
 		if !ok {
-			return nil, errors.NewBaseError(errors.KindServerError, "failed to cast user info to GitHubUserInfo", nil, nil)
+			return nil, errors.NewBaseError(errors.KindServerError, "failed to cast user info to GitHubUserInfo", nil)
 		}
 	}
 

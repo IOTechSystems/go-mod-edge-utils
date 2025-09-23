@@ -82,7 +82,7 @@ func TestGithubGetTokenByUserIDWithTokenNotFound(t *testing.T) {
 	authenticator := newGithubAuthenticator()
 	_, err := authenticator.GetTokenByUserID(strconv.FormatInt(mockUserNumId, 10))
 
-	assert.ErrorIs(t, err, errors.NewBaseError(errors.KindEntityDoesNotExist, fmt.Sprintf("token not found for the user %v", mockUserNumId), nil, nil))
+	assert.ErrorIs(t, err, errors.NewBaseError(errors.KindEntityDoesNotExist, fmt.Sprintf("token not found for the user %v", mockUserNumId), nil))
 }
 
 func TestGithubGetTokenByUserID(t *testing.T) {

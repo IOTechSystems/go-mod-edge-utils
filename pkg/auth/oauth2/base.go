@@ -134,7 +134,7 @@ func (b *baseOauth2Authenticator) getTokenByUserID(config Config, userId string)
 	token, ok := b.tokens[userId]
 	b.mu.RUnlock()
 	if !ok || token == nil {
-		return nil, errors.NewBaseError(errors.KindEntityDoesNotExist, fmt.Sprintf("token not found for the user %s", userId), nil, nil)
+		return nil, errors.NewBaseError(errors.KindEntityDoesNotExist, fmt.Sprintf("token not found for the user %s", userId), nil)
 	}
 
 	var err errors.Error
@@ -155,7 +155,7 @@ func (b *baseOauth2Authenticator) refreshOAuth2Token(config Config, userId strin
 	b.lc.Debug("exchange refresh token for the new token")
 	if err != nil {
 		b.lc.Errorf("failed to exchange token, err: %v", err)
-		return nil, errors.NewBaseError(errors.KindServerError, "failed to exchange token", err, nil)
+		return nil, errors.NewBaseError(errors.KindServerError, "failed to exchange token", err)
 	}
 
 	// Store the new token

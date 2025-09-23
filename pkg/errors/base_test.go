@@ -4,19 +4,20 @@ package errors
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 var (
-	L0Error        = NewBaseError(KindUnknown, "", nil, nil)
+	L0Error        = NewBaseError(KindUnknown, "", nil)
 	L1Error        = fmt.Errorf("nothing")
 	L1ErrorWrapper = ToBaseError(L1Error)
 	L2ErrorWrapper = ToBaseError(L1ErrorWrapper)
-	L2Error        = NewBaseError(KindDatabaseError, "database failed", L1Error, nil)
+	L2Error        = NewBaseError(KindDatabaseError, "database failed", L1Error)
 	L3Error        = ToBaseError(L2Error)
-	L4Error        = NewBaseError(KindUnknown, "don't know", L3Error, nil)
-	L5Error        = NewBaseError(KindCommunicationError, "network disconnected", L4Error, nil)
+	L4Error        = NewBaseError(KindUnknown, "don't know", L3Error)
+	L5Error        = NewBaseError(KindCommunicationError, "network disconnected", L4Error)
 )
 
 func TestKind(t *testing.T) {

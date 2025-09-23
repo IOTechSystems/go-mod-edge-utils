@@ -128,7 +128,18 @@ func Details(err error) ErrDetails {
 }
 
 // NewBaseError creates a new BaseError with the information provided
-func NewBaseError(kind ErrKind, errMsg string, err error, detail ErrDetails) BaseError {
+func NewBaseError(kind ErrKind, errMsg string, err error) BaseError {
+	return BaseError{
+		kind:       kind,
+		message:    errMsg,
+		wrappedErr: err,
+		callerInfo: getCallerInformation(),
+		details:    nil,
+	}
+}
+
+// NewBaseErrorWithDetails creates a new BaseError with the information provided and error details map
+func NewBaseErrorWithDetails(kind ErrKind, errMsg string, err error, detail ErrDetails) BaseError {
 	return BaseError{
 		kind:       kind,
 		message:    errMsg,
@@ -140,7 +151,7 @@ func NewBaseError(kind ErrKind, errMsg string, err error, detail ErrDetails) Bas
 
 // BaseErrorWrapper creates a new BaseError by wrapping an existing Error
 func BaseErrorWrapper(err Error) BaseError {
-	return NewBaseError(Kind(err), "", err, Details(err))
+	return NewBaseErrorWithDetails(Kind(err), "", err, Details(err))
 }
 
 // ToBaseError creates a new BaseError with Kind found from err
@@ -156,7 +167,7 @@ func ToBaseError(err error) BaseError {
 	}
 
 	kind := Kind(err)
-	return NewBaseError(kind, "", err, details)
+	return NewBaseErrorWithDetails(kind, "", err, details)
 }
 
 // getCallerInformation generates information about the caller function. This function skips the caller which has
