@@ -10,13 +10,14 @@ import (
 	"encoding/json"
 	goErr "errors"
 	"fmt"
-	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/rest/interfaces"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/rest/interfaces"
 
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/common"
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/errors"
@@ -157,11 +158,11 @@ func ParseGetAllObjectsRequestQueryString(r *http.Request, maxOffSet, maxResultC
 func ParseStartEndRequestQueryString(r *http.Request) (start, end int64, err errors.Error) {
 	start, parseErr := parseQueryStringToInt64(r, common.Start, 0)
 	if parseErr != nil {
-		err = errors.NewBaseError(errors.KindContractInvalid, "unable to convert 'start' value to int", parseErr, nil)
+		err = errors.NewBaseError(errors.KindContractInvalid, "unable to convert 'start' value to int", parseErr)
 	}
 	end, parseErr = parseQueryStringToInt64(r, common.End, time.Now().UnixMilli())
 	if parseErr != nil {
-		err = errors.NewBaseError(errors.KindContractInvalid, "unable to convert 'end' value to int", parseErr, nil)
+		err = errors.NewBaseError(errors.KindContractInvalid, "unable to convert 'end' value to int", parseErr)
 	}
 
 	return start, end, err
@@ -221,7 +222,7 @@ func parseQueryStringToInt(r *http.Request, queryStringKey string, defaultValue 
 	if len(value) > 0 {
 		result, parsingErr = strconv.Atoi(strings.TrimSpace(value))
 		if parsingErr != nil {
-			return 0, errors.NewBaseError(errors.KindContractInvalid, fmt.Sprintf("failed to parse querystring %s's value %s into integer. Error:%s", queryStringKey, value, parsingErr.Error()), nil, nil)
+			return 0, errors.NewBaseError(errors.KindContractInvalid, fmt.Sprintf("failed to parse querystring %s's value %s into integer. Error:%s", queryStringKey, value, parsingErr.Error()), nil)
 		}
 	}
 
@@ -236,7 +237,7 @@ func parseQueryStringToInt64(r *http.Request, queryStringKey string, defaultValu
 	if value != "" {
 		result, parsingErr = strconv.ParseInt(strings.TrimSpace(value), 10, 64)
 		if parsingErr != nil {
-			return 0, errors.NewBaseError(errors.KindContractInvalid, fmt.Sprintf("failed to parse querystring %s's value %s into int64. Error:%s", queryStringKey, value, parsingErr.Error()), nil, nil)
+			return 0, errors.NewBaseError(errors.KindContractInvalid, fmt.Sprintf("failed to parse querystring %s's value %s into int64. Error:%s", queryStringKey, value, parsingErr.Error()), nil)
 		}
 	}
 	return result, nil
@@ -250,7 +251,7 @@ func parseQueryStringToBool(r *http.Request, queryStringKey string) (bool, error
 	if param != "" {
 		result, parsingErr = strconv.ParseBool(strings.TrimSpace(param))
 		if parsingErr != nil {
-			return false, errors.NewBaseError(errors.KindContractInvalid, fmt.Sprintf("failed to parse querystring %s into bool. Error:%s", queryStringKey, parsingErr.Error()), nil, nil)
+			return false, errors.NewBaseError(errors.KindContractInvalid, fmt.Sprintf("failed to parse querystring %s into bool. Error:%s", queryStringKey, parsingErr.Error()), nil)
 		}
 	}
 	return result, nil
@@ -259,11 +260,11 @@ func parseQueryStringToBool(r *http.Request, queryStringKey string) (bool, error
 func checkValueRange(name string, value, min, max int) errors.Error {
 	// first check if specified min is bigger than max, throw error for such case
 	if min > max {
-		return errors.NewBaseError(errors.KindContractInvalid, fmt.Sprintf("specified min %v is bigger than specified max %v", min, max), nil, nil)
+		return errors.NewBaseError(errors.KindContractInvalid, fmt.Sprintf("specified min %v is bigger than specified max %v", min, max), nil)
 	}
 
 	if value < min || value > max {
-		return errors.NewBaseError(errors.KindContractInvalid, fmt.Sprintf("querystring %s's value %v is out of min %v ~ max %v range.", name, value, min, max), nil, nil)
+		return errors.NewBaseError(errors.KindContractInvalid, fmt.Sprintf("querystring %s's value %v is out of min %v ~ max %v range.", name, value, min, max), nil)
 	}
 
 	return nil

@@ -4,10 +4,11 @@ package errors
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"strconv"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestHttpError(t *testing.T) {
@@ -24,7 +25,7 @@ func TestHttpError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			baseErr := NewBaseError(tt.kind, tt.errMsg, nil, nil)
+			baseErr := NewBaseError(tt.kind, tt.errMsg, nil)
 			httpErr := NewHTTPError(baseErr)
 			expectedCode := codeMapping(tt.kind)
 			assert.Equal(t, httpErr.Code(), expectedCode, fmt.Sprintf("Retrieved http status code %v is not equal to %v.", httpErr.Code(), expectedCode))

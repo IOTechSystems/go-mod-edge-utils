@@ -14,7 +14,7 @@ type HTTPError struct {
 
 func NewHTTPError(wrappedError error) HTTPError {
 	kind := Kind(wrappedError)
-	baseError := NewBaseError(kind, "", wrappedError, nil)
+	baseError := NewBaseError(kind, "", wrappedError)
 	return HTTPError{
 		BaseError:      baseError,
 		httpStatusCode: codeMapping(kind),

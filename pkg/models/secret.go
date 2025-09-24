@@ -19,6 +19,7 @@ package models
 
 import (
 	"encoding/json"
+
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/errors"
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/validator"
 )
@@ -59,14 +60,14 @@ func (sr *SecretRequest) UnmarshalJSON(b []byte) error {
 	}
 
 	if err := json.Unmarshal(b, &alias); err != nil {
-		return errors.NewBaseError(errors.KindContractInvalid, "Failed to unmarshal SecretRequest body as JSON.", err, nil)
+		return errors.NewBaseError(errors.KindContractInvalid, "Failed to unmarshal SecretRequest body as JSON.", err)
 	}
 
 	*sr = SecretRequest(alias)
 
 	// validate SecretRequest DTO
 	if err := sr.Validate(); err != nil {
-		return errors.NewBaseError(errors.KindContractInvalid, "SecretRequest validation failed.", err, nil)
+		return errors.NewBaseError(errors.KindContractInvalid, "SecretRequest validation failed.", err)
 	}
 	return nil
 }

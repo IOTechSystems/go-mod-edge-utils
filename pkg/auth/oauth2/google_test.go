@@ -81,7 +81,7 @@ func TestGoogleGetTokenByUserIDWithTokenNotFound(t *testing.T) {
 	authenticator := newGoogleAuthenticator()
 	_, err := authenticator.GetTokenByUserID(mockUserId)
 
-	assert.ErrorIs(t, err, errors.NewBaseError(errors.KindEntityDoesNotExist, fmt.Sprintf("token not found for the user %s", mockUserId), nil, nil))
+	assert.ErrorIs(t, err, errors.NewBaseError(errors.KindEntityDoesNotExist, fmt.Sprintf("token not found for the user %s", mockUserId), nil))
 }
 
 func TestGoogleGetTokenByUserID(t *testing.T) {

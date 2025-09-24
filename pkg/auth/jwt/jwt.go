@@ -20,7 +20,7 @@ import (
 func GetTokenStringFromRequest(r *http.Request) (string, errors.Error) {
 	auth := r.Header.Get(authorizationHeader)
 	if auth == "" {
-		return "", errors.NewBaseError(errors.KindUnauthorized, authRequiredMsg, nil, nil)
+		return "", errors.NewBaseError(errors.KindUnauthorized, authRequiredMsg, nil)
 	}
 	tokenString := strings.TrimSpace(strings.TrimPrefix(auth, bearer))
 	return tokenString, nil
@@ -52,7 +52,7 @@ func CreateToken(name, secretKey, refreshSecretKey string, atExpiresFromNow, reE
 	at := jwt.NewWithClaims(jwt.SigningMethodHS256, atClaims)
 	td.AccessToken, err = at.SignedString([]byte(secretKey))
 	if err != nil {
-		return nil, errors.NewBaseError(errors.KindServerError, failMsg, err, nil)
+		return nil, errors.NewBaseError(errors.KindServerError, failMsg, err)
 	}
 
 	rtClaims := jwt.MapClaims{}
@@ -63,7 +63,7 @@ func CreateToken(name, secretKey, refreshSecretKey string, atExpiresFromNow, reE
 	rt := jwt.NewWithClaims(jwt.SigningMethodHS256, rtClaims)
 	td.RefreshToken, err = rt.SignedString([]byte(refreshSecretKey))
 	if err != nil {
-		return nil, errors.NewBaseError(errors.KindServerError, failMsg, err, nil)
+		return nil, errors.NewBaseError(errors.KindServerError, failMsg, err)
 	}
 
 	return td, nil
@@ -78,12 +78,12 @@ func ValidateAccessToken(tokenString string, secretKey string) (string, string, 
 
 	accessId, ok := claim[ClaimAccessId].(string)
 	if !ok {
-		return "", "", errors.NewBaseError(errors.KindServerError, unexpectedMsg, nil, nil)
+		return "", "", errors.NewBaseError(errors.KindServerError, unexpectedMsg, nil)
 	}
 
 	username, ok := claim[ClaimUsername].(string)
 	if !ok {
-		return "", "", errors.NewBaseError(errors.KindServerError, unexpectedMsg, nil, nil)
+		return "", "", errors.NewBaseError(errors.KindServerError, unexpectedMsg, nil)
 	}
 
 	return accessId, username, nil
@@ -98,12 +98,12 @@ func ValidateRefreshToken(tokenString string, refreshSecretKey string) (string, 
 
 	refreshId, ok := claim[ClaimRefreshId].(string)
 	if !ok {
-		return "", "", errors.NewBaseError(errors.KindServerError, unexpectedMsg, nil, nil)
+		return "", "", errors.NewBaseError(errors.KindServerError, unexpectedMsg, nil)
 	}
 
 	username, ok := claim[ClaimUsername].(string)
 	if !ok {
-		return "", "", errors.NewBaseError(errors.KindServerError, unexpectedMsg, nil, nil)
+		return "", "", errors.NewBaseError(errors.KindServerError, unexpectedMsg, nil)
 	}
 
 	return refreshId, username, nil
@@ -119,28 +119,28 @@ func validateToken(tokenString string, secretKey string) (jwt.MapClaims, errors.
 		return []byte(secretKey), nil
 	})
 	if err != nil {
-		return nil, errors.NewBaseError(errors.KindUnauthorized, invalidMsg, err, nil)
+		return nil, errors.NewBaseError(errors.KindUnauthorized, invalidMsg, err)
 	}
 
 	claim, ok := token.Claims.(jwt.MapClaims)
 	if !ok || !token.Valid {
-		return nil, errors.NewBaseError(errors.KindUnauthorized, invalidMsg, nil, nil)
+		return nil, errors.NewBaseError(errors.KindUnauthorized, invalidMsg, nil)
 	}
 
 	issuer, err := claim.GetIssuer()
 	if err != nil {
-		return nil, errors.NewBaseError(errors.KindUnauthorized, invalidMsg, err, nil)
+		return nil, errors.NewBaseError(errors.KindUnauthorized, invalidMsg, err)
 	}
 	if issuer != IOTechIssuer {
-		return nil, errors.NewBaseError(errors.KindUnauthorized, unexpectedMsg, nil, nil)
+		return nil, errors.NewBaseError(errors.KindUnauthorized, unexpectedMsg, nil)
 	}
 
 	expTime, err := claim.GetExpirationTime()
 	if err != nil {
-		return nil, errors.NewBaseError(errors.KindUnauthorized, invalidMsg, err, nil)
+		return nil, errors.NewBaseError(errors.KindUnauthorized, invalidMsg, err)
 	}
 	if expTime == nil || expTime.Time.Before(time.Now()) {
-		return nil, errors.NewBaseError(errors.KindUnauthorized, authRevokedMsg, nil, nil)
+		return nil, errors.NewBaseError(errors.KindUnauthorized, authRevokedMsg, nil)
 	}
 
 	return claim, nil

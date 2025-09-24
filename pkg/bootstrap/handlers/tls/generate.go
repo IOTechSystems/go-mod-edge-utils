@@ -55,7 +55,7 @@ func generateCertAndKey(lc log.Logger, certConfig, certOutputDir string) (tlsCer
 	}
 
 	if !checkIfFileExists(certConfig) {
-		return "", "", errors.NewBaseError(errors.KindEntityDoesNotExist, fmt.Sprintf("config file %s does not exist", certConfig), nil, nil)
+		return "", "", errors.NewBaseError(errors.KindEntityDoesNotExist, fmt.Sprintf("config file %s does not exist", certConfig), nil)
 	}
 
 	if err := genTLSAssets(lc, certConfig, certOutputDir); err != nil {
@@ -71,37 +71,37 @@ func genTLSAssets(lc log.Logger, jsonConfig, certOutputDir string) errors.Error 
 	// Read the Json x509 file and unmarshall content into struct type X509
 	x509Config, err := seed.NewX509(jsonConfig)
 	if err != nil {
-		return errors.NewBaseError(errors.KindServerError, "fail to read x590 json config", err, nil)
+		return errors.NewBaseError(errors.KindServerError, "fail to read x590 json config", err)
 	}
 
 	seed, err := seed.NewCertificateSeed(x509Config, lc)
 	if err != nil {
-		return errors.NewBaseError(errors.KindServerError, "fail to create certificate seed", err, nil)
+		return errors.NewBaseError(errors.KindServerError, "fail to create certificate seed", err)
 	}
 
 	rootCA, err := certificates.NewCertificateGenerator(certificates.RootCertificate, seed, certificates.NewFileWriter(), lc)
 	if err != nil {
-		return errors.NewBaseError(errors.KindServerError, "fail to create root certificate generator", err, nil)
+		return errors.NewBaseError(errors.KindServerError, "fail to create root certificate generator", err)
 	}
 
 	err = rootCA.Generate()
 	if err != nil {
-		return errors.NewBaseError(errors.KindServerError, "fail to create root certificate", err, nil)
+		return errors.NewBaseError(errors.KindServerError, "fail to create root certificate", err)
 	}
 
 	tlsCert, err := certificates.NewCertificateGenerator(certificates.TLSCertificate, seed, certificates.NewFileWriter(), lc)
 	if err != nil {
-		return errors.NewBaseError(errors.KindServerError, "fail to create tls certificate generator", err, nil)
+		return errors.NewBaseError(errors.KindServerError, "fail to create tls certificate generator", err)
 	}
 
 	err = tlsCert.Generate()
 	if err != nil {
-		return errors.NewBaseError(errors.KindServerError, "fail to create tls certificate", err, nil)
+		return errors.NewBaseError(errors.KindServerError, "fail to create tls certificate", err)
 	}
 
 	err = copyToTlsFolder(x509Config, certOutputDir)
 	if err != nil {
-		return errors.NewBaseError(errors.KindServerError, "fail to copy generated certificate to tls folder", err, nil)
+		return errors.NewBaseError(errors.KindServerError, "fail to copy generated certificate to tls folder", err)
 	}
 	return nil
 }

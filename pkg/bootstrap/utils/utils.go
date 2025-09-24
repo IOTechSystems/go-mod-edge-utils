@@ -89,7 +89,7 @@ func SendJsonErrResp(
 	err error,
 	requestID string) error {
 
-	httpErr := errors.NewHTTPError(errors.NewBaseError(errKind, message, err, nil))
+	httpErr := errors.NewHTTPError(errors.NewBaseError(errKind, message, err))
 	logger.Error(httpErr.Error())
 	logger.Debug(httpErr.DebugMessages())
 	response := models.NewBaseResponse(requestID, httpErr.Message(), httpErr.Code())

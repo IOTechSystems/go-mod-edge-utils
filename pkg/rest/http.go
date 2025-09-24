@@ -70,23 +70,23 @@ func (sender *httpSender) httpSend(dic *di.Container, data any, method string) u
 	logger := container.LoggerFrom(dic.Get)
 
 	if data == nil {
-		return utilsErrors.NewBaseError(utilsErrors.KindEntityDoesNotExist, "No data", nil, nil)
+		return utilsErrors.NewBaseError(utilsErrors.KindEntityDoesNotExist, "No data", nil)
 	}
 
 	exportData, err := coerceType(data)
 	if err != nil {
-		return utilsErrors.NewBaseError(utilsErrors.KindContractInvalid, "", err, nil)
+		return utilsErrors.NewBaseError(utilsErrors.KindContractInvalid, "", err)
 	}
 
 	parsedUrl, err := url.Parse(sender.url)
 	if err != nil {
-		return utilsErrors.NewBaseError(utilsErrors.KindNotAllowed, "Failed to parse url", err, nil)
+		return utilsErrors.NewBaseError(utilsErrors.KindNotAllowed, "Failed to parse url", err)
 	}
 
 	client := &http.Client{}
 	req, err := http.NewRequest(method, parsedUrl.String(), bytes.NewReader(exportData))
 	if err != nil {
-		return utilsErrors.NewBaseError(utilsErrors.KindServerError, "", err, nil)
+		return utilsErrors.NewBaseError(utilsErrors.KindServerError, "", err)
 	}
 
 	// Set content type
@@ -106,7 +106,7 @@ func (sender *httpSender) httpSend(dic *di.Container, data any, method string) u
 		secretProvider := container.SecretProviderFrom(dic.Get)
 		secret, err := secretProvider.GetSecret(sender.secretData.secretName, sender.secretData.secretValueKey)
 		if err != nil {
-			return utilsErrors.NewBaseError(utilsErrors.KindEntityDoesNotExist, "", err, nil)
+			return utilsErrors.NewBaseError(utilsErrors.KindEntityDoesNotExist, "", err)
 		}
 		element := secret[sender.secretData.secretValueKey]
 		if len(sender.secretData.secretValuePrefix) != 0 {
@@ -125,18 +125,18 @@ func (sender *httpSender) httpSend(dic *di.Container, data any, method string) u
 
 	response, err := client.Do(req)
 	if err != nil {
-		return utilsErrors.NewBaseError(utilsErrors.KindServerError, "", err, nil)
+		return utilsErrors.NewBaseError(utilsErrors.KindServerError, "", err)
 	}
 
 	defer response.Body.Close()
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		return utilsErrors.NewBaseError(utilsErrors.KindIOError, "Fail to read the response body", err, nil)
+		return utilsErrors.NewBaseError(utilsErrors.KindIOError, "Fail to read the response body", err)
 	}
 
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return utilsErrors.NewBaseError(utilsErrors.KindCommunicationError,
-			fmt.Sprintf("Received '%v' status code, and response body: %v", response.StatusCode, string(body)), nil, nil)
+			fmt.Sprintf("Received '%v' status code, and response body: %v", response.StatusCode, string(body)), nil)
 	}
 
 	logger.Debugf("Received '%v' status code, and response body: %v", response.StatusCode, string(body))
@@ -152,13 +152,13 @@ func (sender *httpSender) determineIfUsingSecret() (bool, utilsErrors.Error) {
 
 	//check fields
 	if len(sender.secretData.secretName) == 0 {
-		return false, utilsErrors.NewBaseError(utilsErrors.KindContractInvalid, "secretName must be specified", nil, nil)
+		return false, utilsErrors.NewBaseError(utilsErrors.KindContractInvalid, "secretName must be specified", nil)
 	}
 	if len(sender.secretData.secretValueKey) == 0 {
-		return false, utilsErrors.NewBaseError(utilsErrors.KindContractInvalid, "secretName was specified but no secretValueKey was provided", nil, nil)
+		return false, utilsErrors.NewBaseError(utilsErrors.KindContractInvalid, "secretName was specified but no secretValueKey was provided", nil)
 	}
 	if len(sender.secretData.secretHeader) == 0 {
-		return false, utilsErrors.NewBaseError(utilsErrors.KindContractInvalid, "secretName and secretValueKey were specified but no secretHeader was provided", nil, nil)
+		return false, utilsErrors.NewBaseError(utilsErrors.KindContractInvalid, "secretName and secretValueKey were specified but no secretHeader was provided", nil)
 	}
 
 	// using secret, all required fields are provided

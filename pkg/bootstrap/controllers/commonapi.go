@@ -133,11 +133,11 @@ func addSecret(dic *di.Container, request models.SecretRequest) errors.Error {
 
 	secretProvider := container.SecretProviderFrom(dic.Get)
 	if secretProvider == nil {
-		return errors.NewBaseError(errors.KindServerError, "secret provider is missing. Make sure it is specified to be used in bootstrap.Run()", nil, nil)
+		return errors.NewBaseError(errors.KindServerError, "secret provider is missing. Make sure it is specified to be used in bootstrap.Run()", nil)
 	}
 
 	if err := secretProvider.StoreSecret(secretName, secret); err != nil {
-		return errors.NewBaseError(errors.Kind(err), "adding secret failed", err, nil)
+		return errors.NewBaseError(errors.Kind(err), "adding secret failed", err)
 	}
 	return nil
 }
