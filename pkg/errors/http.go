@@ -55,7 +55,7 @@ func codeMapping(kind ErrKind) int {
 		return http.StatusMethodNotAllowed
 	case KindRangeNotSatisfiable:
 		return http.StatusRequestedRangeNotSatisfiable
-	case KindIOError:
+	case KindIOError, KindForbidden:
 		return http.StatusForbidden
 	case KindUnauthorized:
 		return http.StatusUnauthorized
