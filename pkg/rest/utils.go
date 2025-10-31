@@ -42,6 +42,18 @@ type BaseResponse struct {
 	StatusCode  int    `json:"statusCode"`
 }
 
+// BaseWithIdResponse defines the base content for response DTOs (data transfer objects).
+type BaseWithIdResponse struct {
+	BaseResponse `json:",inline"`
+	Id           string `json:"id"`
+}
+
+// BaseWithTotalCountResponse defines the base content for response DTOs (data transfer objects).
+type BaseWithTotalCountResponse struct {
+	BaseResponse `json:",inline"`
+	TotalCount   int64 `json:"totalCount"`
+}
+
 func WriteDefaultHttpHeader(w http.ResponseWriter, ctx context.Context, statusCode int) {
 	w.Header().Set(common.CorrelationID, FromContext(ctx, common.CorrelationID))
 	w.Header().Set(common.ContentType, common.ContentTypeJSON)
@@ -68,6 +80,20 @@ func NewBaseResponse(apiVersion, requestId, message string, statusCode int) Base
 		RequestId:   requestId,
 		Message:     message,
 		StatusCode:  statusCode,
+	}
+}
+
+func NewBaseWithIdResponse(apiVersion, requestId, message string, statusCode int, id string) BaseWithIdResponse {
+	return BaseWithIdResponse{
+		BaseResponse: NewBaseResponse(apiVersion, requestId, message, statusCode),
+		Id:           id,
+	}
+}
+
+func NewBaseWithTotalCountResponse(apiVersion, requestId, message string, statusCode int, totalCount int64) BaseWithTotalCountResponse {
+	return BaseWithTotalCountResponse{
+		BaseResponse: NewBaseResponse(apiVersion, requestId, message, statusCode),
+		TotalCount:   totalCount,
 	}
 }
 
