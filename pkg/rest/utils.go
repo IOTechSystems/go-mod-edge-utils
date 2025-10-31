@@ -51,7 +51,7 @@ type BaseWithIdResponse struct {
 // BaseWithTotalCountResponse defines the base content for response DTOs (data transfer objects).
 type BaseWithTotalCountResponse struct {
 	BaseResponse `json:",inline"`
-	TotalCount   uint32 `json:"totalCount"`
+	TotalCount   int64 `json:"totalCount"`
 }
 
 func WriteDefaultHttpHeader(w http.ResponseWriter, ctx context.Context, statusCode int) {
@@ -90,7 +90,7 @@ func NewBaseWithIdResponse(apiVersion, requestId, message string, statusCode int
 	}
 }
 
-func NewBaseWithTotalCountResponse(apiVersion, requestId, message string, statusCode int, totalCount uint32) BaseWithTotalCountResponse {
+func NewBaseWithTotalCountResponse(apiVersion, requestId, message string, statusCode int, totalCount int64) BaseWithTotalCountResponse {
 	return BaseWithTotalCountResponse{
 		BaseResponse: NewBaseResponse(apiVersion, requestId, message, statusCode),
 		TotalCount:   totalCount,
