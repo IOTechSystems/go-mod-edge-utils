@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2025 IOTech Ltd
+// Copyright (C) 2023-2026 IOTech Ltd
 
 package common
 
@@ -6,6 +6,7 @@ const (
 	CorrelationID   = "X-Correlation-ID"
 	ContentType     = "Content-Type"
 	ContentTypeJSON = "application/json"
+	ContentTypeYAML = "application/yaml"
 	ContentTypeText = "text/plain"
 )
 

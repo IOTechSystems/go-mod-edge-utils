@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2024-2025 IOTech Ltd
+// Copyright (C) 2024-2026 IOTech Ltd
 //
 
 package rest
@@ -55,9 +55,7 @@ type BaseWithTotalCountResponse struct {
 }
 
 func WriteDefaultHttpHeader(w http.ResponseWriter, ctx context.Context, statusCode int) {
-	w.Header().Set(common.CorrelationID, FromContext(ctx, common.CorrelationID))
-	w.Header().Set(common.ContentType, common.ContentTypeJSON)
-	w.WriteHeader(statusCode)
+	WriteHttpContentTypeHeader(w, ctx, statusCode, common.ContentTypeJSON)
 }
 
 func WriteHttpContentTypeHeader(w http.ResponseWriter, ctx context.Context, statusCode int, contentType string) {
@@ -124,11 +122,18 @@ func WriteErrorResponse(w *echo.Response, ctx context.Context, lc log.Logger, er
 	return EncodeAndWriteResponse(errResponses, w, lc)
 }
 
-func EncodeAndWriteResponse(i any, w *echo.Response, lc log.Logger) error {
-	w.Header().Set(common.ContentType, common.ContentTypeJSON)
+func encodeAndWriteResponse(i any, w *echo.Response, lc log.Logger, contentType string) error {
+	w.Header().Set(common.ContentType, contentType)
 
-	enc := json.NewEncoder(w)
-	err := enc.Encode(i)
+	var err error
+	switch contentType {
+	case common.ContentTypeJSON:
+		err = json.NewEncoder(w).Encode(i)
+	case common.ContentTypeYAML:
+		err = yaml.NewEncoder(w).Encode(i)
+	default:
+		return echo.NewHTTPError(http.StatusInternalServerError, "unsupported content type for response: "+contentType)
+	}
 
 	// Problems encoding
 	if err != nil {
@@ -140,18 +145,14 @@ func EncodeAndWriteResponse(i any, w *echo.Response, lc log.Logger) error {
 	return nil
 }
 
-func EncodeAndWriteYamlResponse(i any, w *echo.Response, lc log.Logger) error {
-	enc := yaml.NewEncoder(w)
-	err := enc.Encode(i)
+// EncodeAndWriteResponse encodes data as JSON and writes it to the HTTP response.
+func EncodeAndWriteResponse(i any, w *echo.Response, lc log.Logger) error {
+	return encodeAndWriteResponse(i, w, lc, common.ContentTypeJSON)
+}
 
-	// Problems encoding
-	if err != nil {
-		lc.Error("Error encoding the data: " + err.Error())
-		// set Response.Committed to false in order to rewrite the status code
-		w.Committed = false
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
-	}
-	return nil
+// EncodeAndWriteYamlResponse encodes data as YAML and writes it to the HTTP response.
+func EncodeAndWriteYamlResponse(i any, w *echo.Response, lc log.Logger) error {
+	return encodeAndWriteResponse(i, w, lc, common.ContentTypeYAML)
 }
 
 // ParseGetAllObjectsRequestQueryString parses offset, limit, and labels from the query parameters. And check that the offset and limit values are within the valid range when needed.
