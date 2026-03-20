@@ -52,11 +52,11 @@ func GetVerificationKey(dic *di.Container, issuer, alg string, ctx context.Conte
 			if errors.Kind(err) == errors.KindEntityDoesNotExist {
 				return nil, echo.NewHTTPError(http.StatusUnauthorized, fmt.Sprintf("verification key not found from proxy-auth service for JWT issuer '%s'", issuer))
 			}
-			return nil, echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to obtain the verification key from proxy-auth service for JWT issuer '%s'", issuer), err)
+			return nil, echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to obtain the verification key from proxy-auth service for JWT issuer '%s': %v", issuer, err))
 		}
 		verifyKey, err = ProcessVerificationKey(keyResponse.KeyData.Key, alg, lc)
 		if err != nil {
-			return nil, echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to process the verification key from proxy-auth service for JWT issuer '%s'", issuer), err)
+			return nil, echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to process the verification key from proxy-auth service for JWT issuer '%s': %v", issuer, err))
 		}
 
 		mutex.Lock()
@@ -91,14 +91,14 @@ func ProcessVerificationKey(keyString string, alg string, lc log.Logger) (any, e
 		jwt.SigningMethodPS256.Alg(), jwt.SigningMethodPS384.Alg(), jwt.SigningMethodPS512.Alg():
 		rsaPublicKey, err := jwt.ParseRSAPublicKeyFromPEM(keyBytes)
 		if err != nil {
-			return nil, echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to parse '%s' rsa verification key", alg), err)
+			return nil, echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to parse '%s' rsa verification key: %v", alg, err))
 		}
 
 		return rsaPublicKey, nil
 	case jwt.SigningMethodES256.Alg(), jwt.SigningMethodES384.Alg(), jwt.SigningMethodES512.Alg():
 		ecdsaPublicKey, err := jwt.ParseECPublicKeyFromPEM(keyBytes)
 		if err != nil {
-			return nil, echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to parse '%s' es verification key", alg), err)
+			return nil, echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to parse '%s' es verification key: %v", alg, err))
 		}
 
 		return ecdsaPublicKey, nil

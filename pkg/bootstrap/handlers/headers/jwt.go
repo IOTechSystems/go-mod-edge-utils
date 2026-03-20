@@ -8,6 +8,7 @@ package headers
 import (
 	"context"
 	stdErrs "errors"
+	"fmt"
 	"net/http"
 
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/container"
@@ -42,10 +43,10 @@ func VerifyJWT(token string,
 				stdErrs.Is(err, jwt.ErrTokenSignatureInvalid) ||
 				stdErrs.Is(err, jwt.ErrTokenRequiredClaimMissing) {
 				lc.Errorf("Invalid jwt : %v\n", err)
-				return echo.NewHTTPError(http.StatusUnauthorized, "invalid jwt", err)
+				return echo.NewHTTPError(http.StatusUnauthorized, fmt.Sprintf("invalid jwt: %v", err))
 			}
 			lc.Errorf("Error occurred while validating JWT: %v", err)
-			return echo.NewHTTPError(http.StatusUnauthorized, "failed to parse jwt", err)
+			return echo.NewHTTPError(http.StatusUnauthorized, fmt.Sprintf("failed to parse jwt: %v", err))
 		}
 	}
 	return nil
@@ -62,7 +63,7 @@ func ParseJWT(token string, verifyKey any, claims jwt.Claims, parserOption ...jw
 
 	issuer, err := claims.GetIssuer()
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to retrieve the issuer", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to retrieve the issuer: %v", err))
 	}
 	if len(issuer) == 0 {
 		return echo.NewHTTPError(http.StatusUnauthorized, "issuer is empty")
