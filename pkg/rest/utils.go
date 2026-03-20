@@ -335,7 +335,7 @@ func processRequest(ctx context.Context,
 		return nil
 	}
 	if err := json.Unmarshal(resp, returnValuePointer); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "failed to parse the response body", err)
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("failed to parse the response body: %v", err))
 	}
 	return nil
 }
@@ -405,14 +405,14 @@ func SendRequest(ctx context.Context, req *http.Request, authInjector interfaces
 func CreateRequest(ctx context.Context, httpMethod string, baseUrl string, requestPath string, requestParams url.Values) (*http.Request, error) {
 	u, err := parseBaseUrlAndRequestPath(baseUrl, requestPath)
 	if err != nil {
-		return nil, echo.NewHTTPError(http.StatusInternalServerError, "failed to parse baseUrl and requestPath", err)
+		return nil, echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to parse baseUrl and requestPath: %v", err))
 	}
 	if requestParams != nil {
 		u.RawQuery = requestParams.Encode()
 	}
 	req, err := http.NewRequest(httpMethod, u.String(), nil)
 	if err != nil {
-		return nil, echo.NewHTTPError(http.StatusInternalServerError, "failed to create a http request", err)
+		return nil, echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to create a http request: %v", err))
 	}
 	req.Header.Set(common.CorrelationHeader, correlatedId(ctx))
 	return req, nil
@@ -430,7 +430,7 @@ func makeRequest(req *http.Request, authInjector interfaces.AuthenticationInject
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, echo.NewHTTPError(http.StatusServiceUnavailable, "failed to send a http request", err)
+		return nil, echo.NewHTTPError(http.StatusServiceUnavailable, fmt.Sprintf("failed to send a http request: %v", err))
 	}
 	if resp == nil {
 		return nil, echo.NewHTTPError(http.StatusInternalServerError, "the response should not be a nil")
@@ -442,7 +442,7 @@ func makeRequest(req *http.Request, authInjector interfaces.AuthenticationInject
 func getBody(resp *http.Response) ([]byte, error) {
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return body, echo.NewHTTPError(http.StatusRequestedRangeNotSatisfiable, "failed to read the response body", err)
+		return body, echo.NewHTTPError(http.StatusRequestedRangeNotSatisfiable, fmt.Sprintf("failed to read the response body: %v", err))
 	}
 	return body, nil
 }
@@ -450,7 +450,7 @@ func getBody(resp *http.Response) ([]byte, error) {
 func CreateRequestWithRawData(ctx context.Context, httpMethod string, baseUrl string, requestPath string, requestParams url.Values, data any) (*http.Request, error) {
 	u, err := parseBaseUrlAndRequestPath(baseUrl, requestPath)
 	if err != nil {
-		return nil, echo.NewHTTPError(http.StatusInternalServerError, "failed to parse baseUrl and requestPath", err)
+		return nil, echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to parse baseUrl and requestPath: %v", err))
 	}
 	if requestParams != nil {
 		u.RawQuery = requestParams.Encode()
@@ -458,7 +458,7 @@ func CreateRequestWithRawData(ctx context.Context, httpMethod string, baseUrl st
 
 	jsonEncodedData, err := json.Marshal(data)
 	if err != nil {
-		return nil, echo.NewHTTPError(http.StatusBadRequest, "failed to encode input data to JSON", err)
+		return nil, echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("failed to encode input data to JSON: %v", err))
 	}
 
 	content := FromContext(ctx, common.ContentType)
@@ -468,7 +468,7 @@ func CreateRequestWithRawData(ctx context.Context, httpMethod string, baseUrl st
 
 	req, err := http.NewRequest(httpMethod, u.String(), bytes.NewReader(jsonEncodedData))
 	if err != nil {
-		return nil, echo.NewHTTPError(http.StatusInternalServerError, "failed to create a http request", err)
+		return nil, echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to create a http request: %v", err))
 	}
 	req.Header.Set(common.ContentType, content)
 	req.Header.Set(common.CorrelationHeader, correlatedId(ctx))
