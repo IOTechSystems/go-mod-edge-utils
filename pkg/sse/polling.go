@@ -24,6 +24,7 @@ type Polling struct {
 	interval      time.Duration
 	pollingFunc   func(context.Context) (any, error)
 	stopCondition func(data any) bool
+	stopCallback  func()
 	lc            log.Logger
 
 	ctx    context.Context
@@ -53,6 +54,7 @@ func NewPolling(lc log.Logger, pollingFunc func(context.Context) (any, error), o
 		pollingFunc:   pollingFunc,
 		lc:            lc,
 		stopCondition: config.StopCondition,
+		stopCallback:  config.StopCallback,
 	}
 }
 
@@ -78,6 +80,13 @@ func (p *Polling) Stop() error {
 }
 
 func (p *Polling) pollingAndPublish(publisher Publisher) {
+	// Invoke the stop callback (if set) after the polling loop exits
+	defer func() {
+		if p.stopCallback != nil {
+			p.stopCallback()
+		}
+	}()
+
 	doPollAndPublish := func() {
 		data, err := p.pollingFunc(p.ctx)
 		if err != nil {

@@ -33,6 +33,7 @@ type PollingConfig struct {
 	interval      time.Duration
 	ApiVersion    string
 	StopCondition func(data any) bool
+	StopCallback  func()
 }
 
 // PollingOption is a function that modifies the PollingConfig.
@@ -60,5 +61,13 @@ func WithCustomApiVersion(apiVersion string) PollingOption {
 func WithStopCondition(fn func(any) bool) PollingOption {
 	return func(config *PollingConfig) {
 		config.StopCondition = fn
+	}
+}
+
+// WithStopCallback returns a PollingOption that sets a callback to be invoked when polling stops.
+// The callback is called regardless of the reason polling stopped (stop condition met, explicit Stop(), or context cancellation).
+func WithStopCallback(fn func()) PollingOption {
+	return func(config *PollingConfig) {
+		config.StopCallback = fn
 	}
 }

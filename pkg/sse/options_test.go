@@ -44,3 +44,13 @@ func TestWithStopCondition(t *testing.T) {
 	assert.True(t, config.StopCondition("done"))
 	assert.False(t, config.StopCondition("not done"))
 }
+
+func TestWithStopCallback(t *testing.T) {
+	called := false
+	fn := func() { called = true }
+	config := &PollingConfig{}
+	WithStopCallback(fn)(config)
+	assert.NotNil(t, config.StopCallback)
+	config.StopCallback()
+	assert.True(t, called)
+}

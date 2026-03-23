@@ -223,3 +223,64 @@ func TestPolling_Stop_BeforeStart(t *testing.T) {
 	p := NewPolling(lc, func(_ context.Context) (any, error) { return nil, nil })
 	assert.NoError(t, p.Stop())
 }
+
+// TestNewPolling_WithStopCallback verifies that WithStopCallback wires the callback into the Polling struct.
+func TestNewPolling_WithStopCallback(t *testing.T) {
+	lc := newTestLogger(t)
+	called := false
+	fn := func() { called = false } // value doesn't matter; we just check it is non-nil and stored
+	_ = called
+
+	p := NewPolling(lc,
+		func(_ context.Context) (any, error) { return nil, nil },
+		WithStopCallback(fn),
+	)
+
+	require.NotNil(t, p.stopCallback)
+}
+
+// TestPolling_StopCallback_CalledOnStop verifies that the stop callback is invoked when Stop() is called.
+func TestPolling_StopCallback_CalledOnStop(t *testing.T) {
+	lc := newTestLogger(t)
+	pub := &mockPublisher{}
+	callbackCh := make(chan struct{}, 1)
+
+	p := NewPolling(lc,
+		func(_ context.Context) (any, error) { return "data", nil },
+		WithCustomPollingInterval(50*time.Millisecond),
+		WithStopCallback(func() { callbackCh <- struct{}{} }),
+	)
+
+	p.Start(pub)
+	require.NoError(t, p.Stop())
+
+	select {
+	case <-callbackCh:
+	case <-time.After(time.Second):
+		t.Fatal("stop callback was not invoked within timeout after Stop()")
+	}
+}
+
+// TestPolling_StopCallback_CalledOnStopCondition verifies that the stop callback is invoked
+// when the stop condition causes polling to self-terminate.
+func TestPolling_StopCallback_CalledOnStopCondition(t *testing.T) {
+	lc := newTestLogger(t)
+	pub := &mockPublisher{}
+	callbackCh := make(chan struct{}, 1)
+
+	p := NewPolling(lc,
+		func(_ context.Context) (any, error) { return "final", nil },
+		WithCustomPollingInterval(50*time.Millisecond),
+		WithStopCondition(func(data any) bool { return data == "final" }),
+		WithStopCallback(func() { callbackCh <- struct{}{} }),
+	)
+
+	p.Start(pub)
+	// Wait for the callback — self-termination via stop condition should trigger it.
+	select {
+	case <-callbackCh:
+	case <-time.After(2 * time.Second):
+		t.Fatal("stop callback was not invoked within timeout after stop condition was met")
+	}
+	require.NoError(t, p.Stop())
+}
