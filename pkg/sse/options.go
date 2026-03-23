@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2025 IOTech Ltd
+// Copyright (C) 2025-2026 IOTech Ltd
 //
 
 package sse
@@ -30,8 +30,9 @@ func WithCustomTopic(topic string) HandlerOption {
 }
 
 type PollingConfig struct {
-	interval   time.Duration
-	ApiVersion string
+	interval      time.Duration
+	ApiVersion    string
+	StopCondition func(data any) bool
 }
 
 // PollingOption is a function that modifies the PollingConfig.
@@ -51,5 +52,13 @@ func WithCustomPollingInterval(interval time.Duration) PollingOption {
 func WithCustomApiVersion(apiVersion string) PollingOption {
 	return func(config *PollingConfig) {
 		config.ApiVersion = apiVersion
+	}
+}
+
+// WithStopCondition returns a PollingOption that sets a stop condition function in the PollingConfig.
+// Polling will stop after publishing data if the function returns true.
+func WithStopCondition(fn func(any) bool) PollingOption {
+	return func(config *PollingConfig) {
+		config.StopCondition = fn
 	}
 }
