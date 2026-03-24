@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2025 IOTech Ltd
+// Copyright (C) 2025-2026 IOTech Ltd
 //
 
 package sse
@@ -20,10 +20,12 @@ import (
 // Polling is a struct that implements a polling mechanism for fetching data from a data source at regular intervals.
 // It is designed to be started once and can be stopped gracefully.
 type Polling struct {
-	apiVersion  string
-	interval    time.Duration
-	pollingFunc func(context.Context) (any, error)
-	lc          log.Logger
+	apiVersion    string
+	interval      time.Duration
+	pollingFunc   func(context.Context) (any, error)
+	stopCondition func(data any) bool
+	stopCallback  func()
+	lc            log.Logger
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -47,10 +49,12 @@ func NewPolling(lc log.Logger, pollingFunc func(context.Context) (any, error), o
 	}
 
 	return &Polling{
-		apiVersion:  config.ApiVersion,
-		interval:    config.interval,
-		pollingFunc: pollingFunc,
-		lc:          lc,
+		apiVersion:    config.ApiVersion,
+		interval:      config.interval,
+		pollingFunc:   pollingFunc,
+		lc:            lc,
+		stopCondition: config.StopCondition,
+		stopCallback:  config.StopCallback,
 	}
 }
 
@@ -76,13 +80,26 @@ func (p *Polling) Stop() error {
 }
 
 func (p *Polling) pollingAndPublish(publisher Publisher) {
+	// Invoke the stop callback (if set) after the polling loop exits
+	defer func() {
+		if p.stopCallback != nil {
+			p.stopCallback()
+		}
+	}()
+
 	doPollAndPublish := func() {
 		data, err := p.pollingFunc(p.ctx)
 		if err != nil {
 			p.lc.Errorf("sse polling: Failed to fetch data: %v", err)
 			publisher.Publish(p.getErrorResponse(err))
-		} else {
-			publisher.Publish(data)
+			return
+		}
+		publisher.Publish(data)
+		if p.stopCondition != nil && p.stopCondition(data) {
+			p.lc.Debug("sse polling: Stop condition met, stopping polling")
+			if p.cancel != nil {
+				p.cancel()
+			}
 		}
 	}
 
