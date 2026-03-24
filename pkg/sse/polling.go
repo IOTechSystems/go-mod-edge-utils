@@ -97,7 +97,9 @@ func (p *Polling) pollingAndPublish(publisher Publisher) {
 		publisher.Publish(data)
 		if p.stopCondition != nil && p.stopCondition(data) {
 			p.lc.Debug("sse polling: Stop condition met, stopping polling")
-			p.cancel()
+			if p.cancel != nil {
+				p.cancel()
+			}
 		}
 	}
 
