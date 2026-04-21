@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/container"
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/bootstrap/startup"
@@ -112,9 +111,7 @@ func (b *HttpServer) BootstrapHandler(
 		return false
 	}
 
-	b.router.Use(middleware.TimeoutWithConfig(middleware.TimeoutConfig{
-		Timeout: timeout,
-	}))
+	b.router.Use(RequestTimeoutMiddleware(timeout))
 
 	b.router.Use(RequestLimitMiddleware(bootstrapConfig.Service.MaxRequestSize, logger))
 
@@ -163,4 +160,32 @@ func (b *HttpServer) BootstrapHandler(
 	}()
 
 	return true
+}
+
+// RequestTimeoutMiddleware enforces a request timeout using http.TimeoutHandler.
+// The client receives a 503 immediately when the timeout is exceeded.
+func RequestTimeoutMiddleware(timeout time.Duration) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			h := http.TimeoutHandler(
+				http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					// - Replace the request so that c.Request().Context() carries the timeout context from TimeoutHandler, allowing downstream handlers to detect cancellation via ctx.Done().
+					// - Replace the writer with TimeoutHandler's mutex-protected writer, which safely discards concurrent writes after timeout.
+					// Both replacements preserve all original context data (route params, auth info, middleware values).
+					c.SetRequest(r)
+					c.SetResponse(echo.NewResponse(w, c.Echo()))
+					if err := next(c); err != nil {
+						// r.Context().Err() is nil means the request has not timed out, so it is safe to write the handler error response.
+						if r.Context().Err() == nil {
+							c.Echo().HTTPErrorHandler(err, c)
+						}
+					}
+				}),
+				timeout,
+				"request timeout",
+			)
+			h.ServeHTTP(c.Response().Writer, c.Request())
+			return nil
+		}
+	}
 }
