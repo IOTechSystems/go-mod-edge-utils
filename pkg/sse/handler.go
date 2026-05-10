@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2025 IOTech Ltd
+// Copyright (C) 2025-2026 IOTech Ltd
 //
 
 package sse
@@ -69,14 +69,12 @@ func handleSSE(c echo.Context, serviceCtx context.Context, b *Broadcaster, heart
 	// to be sent immediately so the client knows this is an SSE stream.
 	// Without this, some servers or frameworks buffer headers by default,
 	// and some clients will not start processing events until the headers
-	// have actually been received.
-	setSSEHeaders(c)
-	if f, ok := c.Response().Writer.(http.Flusher); ok {
-		f.Flush()
-	} else {
-		// In normal Echo deployments, c.Response().Writer implements http.Flusher,
-		// so flushing will work. This check is mainly for tests or custom middlewares
-		// that may wrap the ResponseWriter without flushing support.
+	// have actually been received. SetHeaders flushes internally when the
+	// writer is a Flusher; the explicit check below is only to surface a
+	// warning when the writer cannot flush, since an SSE stream that buffers
+	// headers will misbehave for clients that wait on the content type.
+	SetHeaders(c)
+	if _, ok := c.Response().Writer.(http.Flusher); !ok {
 		b.lc.Warn("sse: ResponseWriter does not support flushing, SSE may not work as expected")
 	}
 
@@ -97,27 +95,9 @@ func handleSSE(c echo.Context, serviceCtx context.Context, b *Broadcaster, heart
 	for {
 		select {
 		case msg := <-ch:
-			msgJSON, err := json.Marshal(msg)
-			if err != nil {
-				b.lc.Errorf("failed to serialize message: %v", err)
-				continue
-			}
-
-			// Set a write deadline to avoid blocking indefinitely when writing
-			// to a slow or broken connection.
-			if err := rc.SetWriteDeadline(time.Now().Add(heartbeatInterval)); err != nil {
-				b.lc.Errorf("sse: failed to set write deadline or not supported: %v", err)
+			if !writeMessage(c, b, rc, msg, heartbeatInterval) {
 				return nil
 			}
-
-			_, err = fmt.Fprintf(c.Response().Writer, "data: %s\n\n", msgJSON)
-			if err != nil {
-				// If writing fails, log the error and close the connection.
-				b.lc.Errorf("failed to write message: %v", err)
-				return nil
-			}
-
-			c.Response().Flush()
 
 		case <-heartbeatTicker.C:
 			// Send a comment line as a heartbeat to keep the connection alive.
@@ -149,8 +129,62 @@ func handleSSE(c echo.Context, serviceCtx context.Context, b *Broadcaster, heart
 	}
 }
 
-func setSSEHeaders(c echo.Context) {
-	c.Response().Header().Set(echo.HeaderContentType, "text/event-stream")
-	c.Response().Header().Set("Cache-Control", "no-cache")
-	c.Response().Header().Set("Connection", "keep-alive")
+// SetHeaders sets the standard SSE response headers (Content-Type,
+// Cache-Control, Connection) on c and flushes them so proxies and clients see
+// the SSE content type before the first event byte arrives. Most callers
+// should use Handler, which calls this internally; this is exported for
+// one-shot SSE responses that do not subscribe to a broadcaster (e.g.
+// jobtracker replaying a retained terminal event).
+//
+// If the underlying ResponseWriter does not implement http.Flusher (typically
+// only in tests with a custom wrapper), the flush is silently skipped — the
+// headers will still go out implicitly on first write.
+func SetHeaders(c echo.Context) {
+	h := c.Response().Header()
+	h.Set(echo.HeaderContentType, "text/event-stream")
+	h.Set("Cache-Control", "no-cache")
+	h.Set("Connection", "keep-alive")
+	if f, ok := c.Response().Writer.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+// writeMessage marshals msg, sets a write deadline, and emits msg as an SSE
+// event. Returns false only on connection-level failure (write deadline /
+// network write); the caller should return nil in that case. A marshalling
+// failure is logged and skipped — a single bad payload should not tear down
+// the stream.
+func writeMessage(c echo.Context, b *Broadcaster, rc *http.ResponseController, msg any, deadline time.Duration) bool {
+	data, err := json.Marshal(msg)
+	if err != nil {
+		b.lc.Errorf("sse: marshal event payload: %v", err)
+		return true
+	}
+	if err := rc.SetWriteDeadline(time.Now().Add(deadline)); err != nil {
+		b.lc.Errorf("sse: set write deadline: %v", err)
+		return false
+	}
+	if _, err := fmt.Fprintf(c.Response().Writer, "data: %s\n\n", data); err != nil {
+		b.lc.Errorf("sse: write event: %v", err)
+		return false
+	}
+	c.Response().Flush()
+	return true
+}
+
+// WriteEvent marshals payload as JSON, writes it as a single SSE "data:" event,
+// and flushes the response. Returns an error if marshalling or writing fails.
+//
+// Headers are NOT set here — call SetHeaders first (and flush, if you want the
+// client to see "Content-Type: text/event-stream" before the first event).
+func WriteEvent(c echo.Context, payload any) error {
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("marshal event payload: %w", err)
+	}
+	if _, err := fmt.Fprintf(c.Response().Writer, "data: %s\n\n", data); err != nil {
+		return fmt.Errorf("write event: %w", err)
+	}
+	c.Response().Flush()
+	return nil
 }

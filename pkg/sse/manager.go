@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2025 IOTech Ltd
+// Copyright (C) 2025-2026 IOTech Ltd
 //
 
 package sse
@@ -59,7 +59,13 @@ func (m *Manager) GetBroadcaster(topic string) (b *Broadcaster, ok bool) {
 	return nil, false
 }
 
-// CreateOrGetBroadcaster retrieves a broadcaster for the specified topic or creates a new one if it doesn't exist.
+// CreateOrGetBroadcaster retrieves a broadcaster for the specified topic or
+// creates a new one if it doesn't exist. The returned broadcaster auto-removes
+// itself from the manager when its last subscriber unsubscribes — fitting the
+// "lives only while observed" model used by live dashboards and polling-driven
+// streams. For publisher-driven flows (e.g. async job progress) where the
+// stream lifetime is owned by the publisher rather than its subscribers, use
+// pkg/sse/jobtracker instead.
 func (m *Manager) CreateOrGetBroadcaster(topic string) (b *Broadcaster, isNew bool) {
 	if b, ok := m.GetBroadcaster(topic); ok {
 		return b, false
