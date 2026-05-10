@@ -74,19 +74,65 @@ func (m *Manager) CreateOrGetBroadcaster(topic string) (b *Broadcaster, isNew bo
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	// Re-check after acquiring the write lock. Two callers can both pass the
+	// fast-path GetBroadcaster check above and serialize on Lock here; without
+	// this re-check the second caller would silently overwrite the first
+	// caller's broadcaster and orphan any subscribers the first caller already
+	// attached.
+	if b, ok := m.broadcasters[topic]; ok {
+		return b, false
+	}
+
 	m.lc.Debugf("sse: Creating new broadcaster for topic '%s'", topic)
 	b = NewBroadcaster(m.lc)
+	// Capture the broadcaster pointer in the callback so the auto-remove path
+	// can compare-and-delete: a new subscriber that arrives between
+	// handleNoSubscribers's RLock check and this callback firing must not have
+	// its broadcaster yanked out from under it. removeBroadcasterIfEmpty
+	// re-verifies both identity and emptiness before deleting.
 	b.SetOnEmptyCallback(func() {
-		m.RemoveBroadcaster(topic)
+		m.removeBroadcasterIfEmpty(topic, b)
 	})
 	m.broadcasters[topic] = b
 	return b, true
 }
 
-// RemoveBroadcaster removes a broadcaster for the specified topic.
+// RemoveBroadcaster removes a broadcaster for the specified topic
+// unconditionally. Most callers should not need this — the auto-remove
+// callback installed by CreateOrGetBroadcaster handles cleanup safely.
 func (m *Manager) RemoveBroadcaster(topic string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	delete(m.broadcasters, topic)
+	m.lc.Debugf("sse: Broadcaster of topic '%s' has been removed", topic)
+}
+
+// removeBroadcasterIfEmpty deletes the broadcaster for topic only if (a) the
+// entry currently in the map is still b (not a replacement), and (b) b has no
+// subscribers. This closes the race window between the broadcaster-level
+// "subscribers == 0" re-check in handleNoSubscribers and this callback
+// running: a new subscriber can attach after the broadcaster releases its
+// RLock but before cb() fires; without this manager-level guard, that
+// subscriber's broadcaster would be silently yanked from the map.
+//
+// Lock order is m.mu → b.mu, consistent with every other path (no caller
+// holds b.mu while taking m.mu).
+func (m *Manager) removeBroadcasterIfEmpty(topic string, b *Broadcaster) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	cur, ok := m.broadcasters[topic]
+	if !ok || cur != b {
+		return
+	}
+
+	b.mu.RLock()
+	empty := len(b.subscribers) == 0
+	b.mu.RUnlock()
+	if !empty {
+		return
+	}
 
 	delete(m.broadcasters, topic)
 	m.lc.Debugf("sse: Broadcaster of topic '%s' has been removed", topic)

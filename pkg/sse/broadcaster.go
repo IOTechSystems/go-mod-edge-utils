@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2025 IOTech Ltd
+// Copyright (C) 2025-2026 IOTech Ltd
 //
 
 package sse
@@ -84,15 +84,28 @@ func (b *Broadcaster) Unsubscribe(ch SubscriberCh) {
 }
 
 func (b *Broadcaster) handleNoSubscribers() {
-	// Stop the polling service if it is set and there are no subscribers left
-	if b.pollingService != nil {
+	// Re-check the subscriber count under the lock: a new subscriber may have
+	// arrived between the Unsubscribe that scheduled this goroutine and now.
+	// Without this re-check the auto-remove callback fires against a
+	// broadcaster that has just been re-subscribed, breaking GetBroadcaster
+	// for the new subscriber.
+	b.mu.RLock()
+	if len(b.subscribers) > 0 {
+		b.mu.RUnlock()
+		return
+	}
+	cb := b.onEmptyCb
+	pollingService := b.pollingService
+	b.mu.RUnlock()
+
+	if pollingService != nil {
 		if err := b.StopPolling(); err != nil {
 			b.lc.Errorf("sse: Failed to stop polling: %v", err)
 		}
 	}
-	if b.onEmptyCb != nil {
+	if cb != nil {
 		b.lc.Debug("sse: No subscribers left, calling onEmpty callback")
-		b.onEmptyCb()
+		cb()
 	}
 }
 

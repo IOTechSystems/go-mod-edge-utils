@@ -356,9 +356,9 @@ func newLiveWriter() *liveWriter {
 	return &liveWriter{rec: httptest.NewRecorder()}
 }
 
-func (w *liveWriter) Header() http.Header     { return w.rec.Header() }
-func (w *liveWriter) WriteHeader(code int)    { w.rec.WriteHeader(code) }
-func (w *liveWriter) Flush()                  { w.rec.Flush() }
+func (w *liveWriter) Header() http.Header              { return w.rec.Header() }
+func (w *liveWriter) WriteHeader(code int)             { w.rec.WriteHeader(code) }
+func (w *liveWriter) Flush()                           { w.rec.Flush() }
 func (w *liveWriter) SetWriteDeadline(time.Time) error { return nil }
 
 func (w *liveWriter) Write(p []byte) (int, error) {
