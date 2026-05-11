@@ -102,10 +102,16 @@ func (m *Manager) CreateOrGetBroadcaster(topic string) (b *Broadcaster, isNew bo
 // callback installed by CreateOrGetBroadcaster handles cleanup safely.
 func (m *Manager) RemoveBroadcaster(topic string) {
 	m.mu.Lock()
-	defer m.mu.Unlock()
-
+	b := m.broadcasters[topic]
 	delete(m.broadcasters, topic)
+	m.mu.Unlock()
+
 	m.lc.Debugf("sse: Broadcaster of topic '%s' has been removed", topic)
+	if b != nil {
+		if err := b.StopPolling(); err != nil {
+			m.lc.Errorf("sse: Failed to stop polling for topic '%s': %v", topic, err)
+		}
+	}
 }
 
 // removeBroadcasterIfEmpty deletes the broadcaster for topic only if (a) the
@@ -120,10 +126,10 @@ func (m *Manager) RemoveBroadcaster(topic string) {
 // holds b.mu while taking m.mu).
 func (m *Manager) removeBroadcasterIfEmpty(topic string, b *Broadcaster) {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 
 	cur, ok := m.broadcasters[topic]
 	if !ok || cur != b {
+		m.mu.Unlock()
 		return
 	}
 
@@ -131,17 +137,17 @@ func (m *Manager) removeBroadcasterIfEmpty(topic string, b *Broadcaster) {
 	empty := len(b.subscribers) == 0
 	b.mu.RUnlock()
 	if !empty {
+		m.mu.Unlock()
 		return
 	}
 
 	delete(m.broadcasters, topic)
+	m.mu.Unlock()
+
 	m.lc.Debugf("sse: Broadcaster of topic '%s' has been removed", topic)
-	// Stop polling here, after confirmed removal, so we never call StopPolling
-	// on a broadcaster that still has subscribers. handleNoSubscribers defers
-	// to this path (skips StopPolling when an onEmpty callback is set) to close
-	// the race where a new subscriber arrives between the emptiness check and
-	// StopPolling firing — which would permanently break polling since
-	// StartPolling is guarded by sync.Once.
+	// Stop polling outside m.mu: StopPolling blocks on wg.Wait() and may run
+	// user-provided stopCallbacks, both of which risk deadlock or a long lock
+	// hold if called under m.mu.
 	if err := b.StopPolling(); err != nil {
 		m.lc.Errorf("sse: Failed to stop polling for topic '%s': %v", topic, err)
 	}
