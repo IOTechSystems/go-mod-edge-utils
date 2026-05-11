@@ -343,7 +343,7 @@ func (t *Tracker) LookupJob(topic string) (*JobState, bool) {
 //   - live job          → streams events until the job ends or the client disconnects
 //
 // Note: a client connecting at the exact moment Job.Finish runs may race past
-// the terminal-replay branch (it sees Terminal == nil) and then have its live
+// the terminal-replay branch (it sees TerminalSet == false) and then have its live
 // subscription stopped immediately by the finished close; in that case the
 // client receives no event. Standard SSE clients reconnect, and the second
 // attempt takes the terminal-replay path.

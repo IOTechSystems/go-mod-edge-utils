@@ -136,6 +136,15 @@ func (m *Manager) removeBroadcasterIfEmpty(topic string, b *Broadcaster) {
 
 	delete(m.broadcasters, topic)
 	m.lc.Debugf("sse: Broadcaster of topic '%s' has been removed", topic)
+	// Stop polling here, after confirmed removal, so we never call StopPolling
+	// on a broadcaster that still has subscribers. handleNoSubscribers defers
+	// to this path (skips StopPolling when an onEmpty callback is set) to close
+	// the race where a new subscriber arrives between the emptiness check and
+	// StopPolling firing — which would permanently break polling since
+	// StartPolling is guarded by sync.Once.
+	if err := b.StopPolling(); err != nil {
+		m.lc.Errorf("sse: Failed to stop polling for topic '%s': %v", topic, err)
+	}
 }
 
 func (m *Manager) Shutdown() {

@@ -175,8 +175,10 @@ func writeMessage(c echo.Context, b *Broadcaster, rc *http.ResponseController, m
 // WriteEvent marshals payload as JSON, writes it as a single SSE "data:" event,
 // and flushes the response. Returns an error if marshalling or writing fails.
 //
-// Headers are NOT set here — call SetHeaders first (and flush, if you want the
-// client to see "Content-Type: text/event-stream" before the first event).
+// Headers are NOT set here — call SetHeaders first. SetHeaders flushes
+// immediately when the writer supports http.Flusher, so the client sees
+// "Content-Type: text/event-stream" before the first event without an
+// additional flush call.
 func WriteEvent(c echo.Context, payload any) error {
 	data, err := json.Marshal(payload)
 	if err != nil {

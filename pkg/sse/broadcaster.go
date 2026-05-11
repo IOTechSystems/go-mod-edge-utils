@@ -98,7 +98,14 @@ func (b *Broadcaster) handleNoSubscribers() {
 	pollingService := b.pollingService
 	b.mu.RUnlock()
 
-	if pollingService != nil {
+	// When an onEmpty callback is present (e.g. the manager), delegate both
+	// polling teardown and removal to the callback. The callback re-checks
+	// emptiness and identity under its own lock, so StopPolling only fires
+	// after we are certain no new subscriber slipped in between our RUnlock
+	// above and the callback running. Without this guard, StopPolling could
+	// fire on a broadcaster that just gained a subscriber; because StartPolling
+	// uses sync.Once, polling would never restart on that instance.
+	if pollingService != nil && cb == nil {
 		if err := b.StopPolling(); err != nil {
 			b.lc.Errorf("sse: Failed to stop polling: %v", err)
 		}

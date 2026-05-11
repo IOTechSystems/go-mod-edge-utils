@@ -162,7 +162,7 @@ cleanup goroutine compares entries by identity and skips removal.
 
 There is a narrow window where a subscriber that calls `Stream` at the exact
 moment `Job.Finish` runs may race past the terminal-replay branch (it sees
-`Terminal == nil`) and then have its live subscription stopped immediately by
+`TerminalSet == false`) and then have its live subscription stopped immediately by
 the `finished` close. Two sub-cases:
 
 - If `Subscribe` happens **before** `Finish` publishes the terminal, the
@@ -199,11 +199,12 @@ For one-shot SSE responses (e.g. replaying a retained terminal yourself), use
 `LookupJob` returns `(*JobState, bool)`:
 
 - `(nil, false)` — no active or recent job
-- `(state, true)` with `state.Terminal == nil` — running; watch
+- `(state, true)` with `state.TerminalSet == false` — running; watch
   `state.Finished` for end-of-job
-- `(state, true)` with `state.Terminal != nil` — finished within retention;
-  `state.Finished` is already closed. `state.Terminal` is `any` — type-assert it
-  back to whatever the publisher passed to `Job.Finish`.
+- `(state, true)` with `state.TerminalSet == true` — finished within retention;
+  `state.Finished` is already closed. `state.Terminal` holds whatever the
+  publisher passed to `Job.Finish` (may be `nil` if `Finish(nil)` was called).
+  Type-assert `state.Terminal` to your payload type when non-nil.
 
 `JobState.Subscribe` / `JobState.Unsubscribe` let tests and advanced consumers
 attach a buffered channel to receive live events directly. Unsubscribe closes
