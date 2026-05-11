@@ -64,6 +64,7 @@ func TestStartJob_ExposesFinishedAndState(t *testing.T) {
 	state, ok := tr.LookupJob("topic1")
 	require.True(t, ok)
 	require.Nil(t, state.Terminal, "terminal must be nil while job is running")
+	require.False(t, state.TerminalSet, "TerminalSet must be false while job is running")
 	require.NotNil(t, state.Finished, "finished channel must be created at StartJob time")
 
 	select {
@@ -388,6 +389,24 @@ func TestStream_NoJobReturnsErrNoJob(t *testing.T) {
 	err := tr.Stream(c, "missing")
 	require.ErrorIs(t, err, ErrNoJob)
 	require.Empty(t, rec.Body.String(), "no body should be written when there is no job")
+}
+
+// Finish(nil) must still set TerminalSet so late-connecting Stream subscribers
+// receive the terminal replay rather than being sent to a dead live stream.
+func TestStream_FinishedJobWithNilPayloadReplaysTerminal(t *testing.T) {
+	tr := newTestTracker(t, time.Hour)
+	job, _ := tr.StartJob("topic1")
+	job.Finish(nil)
+
+	state, ok := tr.LookupJob("topic1")
+	require.True(t, ok)
+	require.True(t, state.TerminalSet, "TerminalSet must be true even when payload is nil")
+	require.Nil(t, state.Terminal)
+
+	c, rec := newEchoContext(t)
+	err := tr.Stream(c, "topic1")
+	require.NoError(t, err)
+	require.Equal(t, "text/event-stream", rec.Header().Get(echo.HeaderContentType))
 }
 
 func TestStream_FinishedJobReplaysTerminal(t *testing.T) {

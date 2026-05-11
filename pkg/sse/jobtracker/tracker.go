@@ -68,22 +68,24 @@ type Tracker struct {
 type jobEntry struct {
 	mu          sync.RWMutex
 	subscribers map[sse.SubscriberCh]struct{}
-	terminal    any           // nil while running; set by Job.Finish
+	terminal    any           // payload passed to Job.Finish; may be nil
+	terminalSet bool          // true once Job.Finish is called; distinguishes Finish(nil) from "still running"
 	finished    chan struct{} // closed by Job.Finish or Job.Abort
 	finishOnce  sync.Once
 }
 
 // JobState is the public, read-only view of a tracked job, returned by LookupJob.
 //
-// Finished is closed when the job ends. Terminal is nil while the job is still
-// running, and set to the payload passed to Job.Finish once it completes;
-// callers must type-assert it back to whatever shape the publisher used.
+// Finished is closed when the job ends. TerminalSet is true once Job.Finish has
+// been called; Terminal holds the payload (which may legitimately be nil).
+// Callers must type-assert Terminal back to whatever shape the publisher used.
 //
 // Subscribe / Unsubscribe let tests and advanced consumers observe live events
 // without going through Stream. Most callers should use Stream instead.
 type JobState struct {
-	Terminal any
-	Finished <-chan struct{}
+	Terminal    any
+	TerminalSet bool // true once Finish is called; use this, not Terminal != nil
+	Finished    <-chan struct{}
 
 	entry *jobEntry
 }
@@ -243,6 +245,7 @@ func (j *Job) doFinish(payload any) {
 
 	e.mu.Lock()
 	e.terminal = payload
+	e.terminalSet = true
 	e.mu.Unlock()
 
 	// Order matters: publish the terminal payload before closing finished, so
@@ -321,11 +324,13 @@ func (t *Tracker) LookupJob(topic string) (*JobState, bool) {
 	}
 	e.mu.RLock()
 	terminal := e.terminal
+	terminalSet := e.terminalSet
 	e.mu.RUnlock()
 	return &JobState{
-		Terminal: terminal,
-		Finished: e.finished,
-		entry:    e,
+		Terminal:    terminal,
+		TerminalSet: terminalSet,
+		Finished:    e.finished,
+		entry:       e,
 	}, true
 }
 
@@ -347,7 +352,7 @@ func (t *Tracker) Stream(c echo.Context, topic string) error {
 	if !ok {
 		return ErrNoJob
 	}
-	if state.Terminal != nil {
+	if state.TerminalSet {
 		// Best-effort write deadline so a slow or half-dead client cannot hang
 		// the goroutine on either the SetHeaders flush or the WriteEvent write.
 		// Real net.Conn writers support this; httptest.ResponseRecorder does
