@@ -362,13 +362,18 @@ func (t *Tracker) Stream(c echo.Context, topic string) error {
 		if err := rc.SetWriteDeadline(time.Now().Add(t.heartbeat)); err != nil {
 			t.debugf("jobtracker: set write deadline for terminal replay (continuing): %v", err)
 		}
+		// SetHeaders flushes only when the writer implements http.Flusher. Track
+		// this before the call so we know whether the response is committed.
+		_, flushed := c.Response().Writer.(http.Flusher)
 		sse.SetHeaders(c)
-		// SetHeaders has already flushed, so the response is committed; bubbling
-		// a write error back to echo would only produce a confused 500 after the
-		// headers have shipped. Log and return nil — the contract here is "the
-		// terminal was already retained, best-effort delivery to this client."
 		if err := sse.WriteEvent(c, state.Terminal); err != nil {
 			t.errorf("jobtracker: write retained terminal: %v", err)
+			if !flushed {
+				// Response not yet committed — let echo return a proper error.
+				return err
+			}
+			// Headers already shipped; bubbling the error would produce a
+			// confused 500. Best-effort delivery: log and return nil.
 		}
 		return nil
 	}
