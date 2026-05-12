@@ -32,7 +32,24 @@ type Polling struct {
 	wg     sync.WaitGroup
 }
 
-// NewPolling creates a new Polling instance with the specified interval and data source.
+// NewPolling builds a Polling that calls pollingFunc every interval and
+// publishes the result to subscribers.
+//
+// pollingFunc receives a ctx that is cancelled when Stop is called. Watch for
+// cancellation, otherwise Stop will block until pollingFunc returns on its own.
+//
+// Good — passes ctx down to the network call:
+//
+//	func fetch(ctx context.Context) (any, error) {
+//	    req, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
+//	    return http.DefaultClient.Do(req)
+//	}
+//
+// Bad — ignores ctx, so a slow server makes Stop block:
+//
+//	func fetch(ctx context.Context) (any, error) {
+//	    return http.Get(url) // no ctx
+//	}
 func NewPolling(lc log.Logger, pollingFunc func(context.Context) (any, error), opts ...PollingOption) *Polling {
 	// Apply options to the PollingConfig if provided
 	config := &PollingConfig{}

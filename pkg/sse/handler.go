@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2025 IOTech Ltd
+// Copyright (C) 2025-2026 IOTech Ltd
 //
 
 package sse
@@ -16,42 +16,43 @@ import (
 
 const defaultHeartbeatInterval = 30 * time.Second
 
-// Handler creates an SSE handler that listens for messages on a specific topic and sends the data to the client.
-// It can be configured with options such as a PollingService to periodically fetch data and publish it to subscribers.
+// Handler returns an echo.HandlerFunc that opens an SSE stream for the
+// caller. It atomically subscribes to the topic (creating the topic's
+// broadcaster on demand) and forwards every published event to the response.
+//
+// Options:
+//   - WithCustomTopic: override the auto-derived topic (defaults to the
+//     request URL path + query).
+//   - WithPollingService: attach a polling service that produces events for
+//     the topic. The service starts on the first subscribe and stops when
+//     the last subscriber leaves.
 func Handler(m *Manager, opts ...HandlerOption) echo.HandlerFunc {
-	// Apply options to the HandlerConfig if provided
 	config := &HandlerConfig{}
 	for _, opt := range opts {
 		opt(config)
 	}
 
 	return func(c echo.Context) error {
-		var topic string
-		if config.CustomTopic != "" {
-			// If a custom topic is provided, use it directly.
-			m.lc.Debugf("sse: Creating SSE handler for custom topic '%s'", config.CustomTopic)
-			topic = config.CustomTopic
-		} else {
-			// Construct the topic based on the request context.
+		topic := config.CustomTopic
+		if topic == "" {
 			topic = ConstructSSETopic(c)
-			m.lc.Debugf("sse: Creating SSE handler for topic '%s'", topic)
+		}
+		m.lc.Debugf("sse: handler subscribing to topic %q", topic)
+
+		b, ch, isNew := m.subscribe(topic, config.PollingService)
+		defer m.unsubscribe(topic, ch)
+
+		if isNew && config.PollingService != nil {
+			m.lc.Debugf("sse: starting polling service for topic %q", topic)
+			b.startPolling()
 		}
 
-		b, isNew := m.CreateOrGetBroadcaster(topic)
-		// Only set the PollingService if it is provided in the configuration and the broadcaster is new.
-		// Otherwise, the handler will just listen for messages without polling.
-		// That is, the user should publish messages through the broadcaster manually.
-		if config.PollingService != nil && isNew {
-			m.lc.Debugf("sse: Setting up polling service for topic '%s'", topic)
-			b.SetPollingService(config.PollingService)
-			b.StartPolling()
-		}
-
-		return handleSSE(c, m.ctx, b, m.heartbeatInterval)
+		return handleSSE(c, m.ctx, b, ch, m.heartbeatInterval)
 	}
 }
 
-// ConstructSSETopic constructs a unique topic string based on the request context.
+// ConstructSSETopic derives a topic from the request URL — path on its own,
+// or path with the query string appended when one is present.
 //
 // e.g. "/api/v3/device/all/sse?offset=10&labels=label1,label2"
 func ConstructSSETopic(c echo.Context) string {
@@ -61,75 +62,63 @@ func ConstructSSETopic(c echo.Context) string {
 	return c.Request().URL.Path + "?" + c.QueryString()
 }
 
-func handleSSE(c echo.Context, serviceCtx context.Context, b *Broadcaster, heartbeatInterval time.Duration) error {
-	ch := b.Subscribe()
-	defer b.Unsubscribe(ch)
-
-	// Force any pending HTTP headers (such as "Content-Type: text/event-stream")
-	// to be sent immediately so the client knows this is an SSE stream.
-	// Without this, some servers or frameworks buffer headers by default,
-	// and some clients will not start processing events until the headers
-	// have actually been received.
+func handleSSE(c echo.Context, serviceCtx context.Context, b *broadcaster, ch subscriberCh, heartbeatInterval time.Duration) error {
+	// Flush the SSE response headers immediately so clients waiting for the
+	// "text/event-stream" content type can start processing the stream.
 	setSSEHeaders(c)
 	if f, ok := c.Response().Writer.(http.Flusher); ok {
 		f.Flush()
 	} else {
-		// In normal Echo deployments, c.Response().Writer implements http.Flusher,
-		// so flushing will work. This check is mainly for tests or custom middlewares
-		// that may wrap the ResponseWriter without flushing support.
+		// Normal Echo deployments support flushing; this branch is mainly for
+		// tests or custom middleware that wrap the ResponseWriter.
 		b.lc.Warn("sse: ResponseWriter does not support flushing, SSE may not work as expected")
 	}
 
-	// Fallback to the default heartbeat interval if it is unset or invalid.
 	if heartbeatInterval <= 0 {
-		b.lc.Debug("sse: Heartbeat interval is not set or invalid, using default value: 30s")
+		b.lc.Debug("sse: heartbeat interval is not set or invalid, using default value: 30s")
 		heartbeatInterval = defaultHeartbeatInterval
 	}
 	heartbeatTicker := time.NewTicker(heartbeatInterval)
 	defer heartbeatTicker.Stop()
 
-	// Create an ResponseController so we can set write deadlines manually.
-	// Write deadlines are applied to the underlying network connection (net.Conn) used by
-	// the ResponseWriter. If sending data to the client takes longer than the deadline,
-	// the write will fail, allowing us to detect broken or extremely slow connections sooner.
+	// ResponseController lets us apply per-write deadlines on the underlying
+	// network connection so a slow or broken client surfaces as a write
+	// error instead of an indefinite block.
 	rc := http.NewResponseController(c.Response().Writer)
 
 	for {
 		select {
-		case msg := <-ch:
+		case msg, open := <-ch:
+			if !open {
+				// Channel closed during unsubscribe (e.g. shutdown). End gracefully.
+				b.lc.Debug("sse: subscriber channel closed")
+				return nil
+			}
 			msgJSON, err := json.Marshal(msg)
 			if err != nil {
-				b.lc.Errorf("failed to serialize message: %v", err)
+				b.lc.Errorf("sse: failed to serialize message: %v", err)
 				continue
 			}
 
-			// Set a write deadline to avoid blocking indefinitely when writing
-			// to a slow or broken connection.
 			if err := rc.SetWriteDeadline(time.Now().Add(heartbeatInterval)); err != nil {
 				b.lc.Errorf("sse: failed to set write deadline or not supported: %v", err)
 				return nil
 			}
 
-			_, err = fmt.Fprintf(c.Response().Writer, "data: %s\n\n", msgJSON)
-			if err != nil {
-				// If writing fails, log the error and close the connection.
-				b.lc.Errorf("failed to write message: %v", err)
+			if _, err = fmt.Fprintf(c.Response().Writer, "data: %s\n\n", msgJSON); err != nil {
+				b.lc.Errorf("sse: failed to write message: %v", err)
 				return nil
 			}
 
 			c.Response().Flush()
 
 		case <-heartbeatTicker.C:
-			// Send a comment line as a heartbeat to keep the connection alive.
-			// Also set a write deadline to avoid blocking indefinitely.
 			if err := rc.SetWriteDeadline(time.Now().Add(heartbeatInterval)); err != nil {
-				b.lc.Errorf("sse: failed to set write deadline or not supported for hearbeat messsage: %v", err)
+				b.lc.Errorf("sse: failed to set write deadline or not supported for heartbeat: %v", err)
 				return nil
 			}
 
-			_, err := fmt.Fprintf(c.Response().Writer, ":\n\n")
-			if err != nil {
-				// Log the error and exit the loop to clean up the connection
+			if _, err := fmt.Fprintf(c.Response().Writer, ":\n\n"); err != nil {
 				b.lc.Warnf("sse: heartbeat write failed: %v", err)
 				return nil
 			}
@@ -137,13 +126,11 @@ func handleSSE(c echo.Context, serviceCtx context.Context, b *Broadcaster, heart
 			c.Response().Flush()
 
 		case <-c.Request().Context().Done():
-			// The client cancelled the request or the context timed out.
-			b.lc.Debug("sse: Request cancelled or timed out")
+			b.lc.Debug("sse: request cancelled or timed out")
 			return nil
 
 		case <-serviceCtx.Done():
-			// The server is shutting down; close all active SSE connections.
-			b.lc.Info("sse: Service shutting down, closing all SSE connection")
+			b.lc.Info("sse: service shutting down, closing SSE connection")
 			return nil
 		}
 	}

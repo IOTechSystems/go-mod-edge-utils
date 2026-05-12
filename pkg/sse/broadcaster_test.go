@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2025 IOTech Ltd
+// Copyright (C) 2025-2026 IOTech Ltd
 //
 
 package sse
@@ -42,7 +42,7 @@ func TestShouldSendUpdate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			b := NewBroadcaster(mockLogger)
+			b := newBroadcaster(mockLogger, nil)
 			require.True(t, b.shouldSendUpdate(tt.value1), "first update should always return true")
 
 			if tt.expected {
