@@ -15,11 +15,12 @@ import (
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log"
 )
 
-// subscriberCh carries broadcast payloads to a single subscriber.
+// subscriberCh carries broadcast payloads to a single subscriber. It also
+// serves as the identity key in broadcaster.subscribers, so the subscriber
+// struct does not need to carry its own channel reference.
 type subscriberCh chan any
 
 type subscriber struct {
-	ch subscriberCh
 	// isNew flags a subscriber that has not yet received any payload. New
 	// subscribers always receive the next published payload regardless of
 	// the dedup hash, otherwise a subscriber that joins after the cache is
@@ -59,7 +60,7 @@ func newBroadcaster(lc log.Logger, pollingService PollingService) *broadcaster {
 // arrange for unsubscribe so the channel is closed.
 func (b *broadcaster) subscribe() subscriberCh {
 	ch := make(subscriberCh, 64)
-	s := &subscriber{ch: ch}
+	s := &subscriber{}
 	s.isNew.Store(true)
 	b.mu.Lock()
 	b.subscribers[ch] = s

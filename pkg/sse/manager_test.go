@@ -12,15 +12,12 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
 func newTestManager(t *testing.T) *Manager {
 	t.Helper()
-	lc := newTestLogger(t)
-	lc.On("Warn", mock.Anything, mock.Anything).Maybe()
-	return NewManager(context.Background(), lc, 30*time.Second)
+	return NewManager(context.Background(), newTestLogger(t), 30*time.Second)
 }
 
 // TestManager_PublishUnknownTopic_NoOp verifies that publishing to a topic

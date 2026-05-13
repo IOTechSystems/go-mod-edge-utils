@@ -16,9 +16,10 @@ import (
 // surface that external code interacts with for SSE pubsub — subscribers
 // connect through sse.Handler and publishers push via Manager.Publish.
 //
-// Keeping broadcasters inside the Manager (rather than handing pointers
-// out) means lookup, subscribe, and teardown all serialize on m.mu, so a
-// publisher and a teardown can never observe inconsistent state.
+// m.mu guards the broadcasters map: lookup, install, and removal are
+// serialized so a Publish can never see a half-torn-down topic. Fan-out to
+// individual subscribers is guarded by the broadcaster's own b.mu, which
+// Publish acquires after releasing m.mu.
 type Manager struct {
 	broadcasters      map[string]*broadcaster
 	mu                sync.RWMutex
