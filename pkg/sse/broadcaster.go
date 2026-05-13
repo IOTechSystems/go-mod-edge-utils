@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2025 IOTech Ltd
+// Copyright (C) 2025-2026 IOTech Ltd
 //
 
 package sse
@@ -9,138 +9,137 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"sync"
+	"sync/atomic"
 
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/common"
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log"
 )
 
-// SubscriberCh is a channel type used for broadcasting messages.
-type SubscriberCh chan any
+// subscriberCh carries broadcast payloads to a single subscriber. It also
+// serves as the identity key in broadcaster.subscribers, so the subscriber
+// struct does not need to carry its own channel reference.
+type subscriberCh chan any
 
-type Subscriber struct {
-	ch    SubscriberCh
-	isNew bool
+type subscriber struct {
+	// isNew flags a subscriber that has not yet received any payload. New
+	// subscribers always receive the next published payload regardless of
+	// the dedup hash, otherwise a subscriber that joins after the cache is
+	// warm could wait an arbitrary time before observing the current value.
+	// atomic so concurrent Publish goroutines (which hold mu.RLock, allowing
+	// parallel readers) can safely clear the flag without escalating to a
+	// write lock.
+	isNew atomic.Bool
 }
 
-// Broadcaster manages a set of subscribers and broadcasts messages to them.
-type Broadcaster struct {
-	lc log.Logger
-	// subscribers hold the active subscribers.
-	subscribers map[SubscriberCh]*Subscriber
+// broadcaster is the per-topic fan-out unit. It is package-internal: only the
+// Manager creates, holds, and tears down broadcasters. External code reaches
+// this type only through Manager.Publish and sse.Handler, which prevents
+// reference escape (the source of every race condition in earlier revisions).
+type broadcaster struct {
+	lc          log.Logger
+	subscribers map[subscriberCh]*subscriber
 	mu          sync.RWMutex
 	lastHash    common.AtomicString
 
 	pollingService PollingService
-	onEmptyCb      func()
-	once           sync.Once
 }
 
-// NewBroadcaster creates a new instance of Broadcaster.
-func NewBroadcaster(lc log.Logger) *Broadcaster {
-	b := &Broadcaster{
-		lc:          lc,
-		subscribers: make(map[SubscriberCh]*Subscriber),
+// newBroadcaster constructs a broadcaster. pollingService is bound for the
+// broadcaster's lifetime; pass nil when no polling source is configured.
+func newBroadcaster(lc log.Logger, pollingService PollingService) *broadcaster {
+	b := &broadcaster{
+		lc:             lc,
+		subscribers:    make(map[subscriberCh]*subscriber),
+		pollingService: pollingService,
 	}
 	b.lastHash.Set("")
 	return b
 }
 
-// SetPollingService sets the polling service for the broadcaster if auto-polling is required.
-func (b *Broadcaster) SetPollingService(service PollingService) {
-	b.pollingService = service
-}
-
-// SetOnEmptyCallback sets a callback function that will be called when there are no subscribers left.
-func (b *Broadcaster) SetOnEmptyCallback(f func()) {
-	b.onEmptyCb = f
-}
-
-// Subscribe adds a new subscriber and returns a channel to receive messages.
-func (b *Broadcaster) Subscribe() SubscriberCh {
-	ch := make(SubscriberCh, 64)
+// subscribe adds a new subscriber channel and returns it. Callers must
+// arrange for unsubscribe so the channel is closed.
+func (b *broadcaster) subscribe() subscriberCh {
+	ch := make(subscriberCh, 64)
+	s := &subscriber{}
+	s.isNew.Store(true)
 	b.mu.Lock()
-	b.subscribers[ch] = &Subscriber{
-		ch:    ch,
-		isNew: true,
-	}
+	b.subscribers[ch] = s
+	total := len(b.subscribers)
 	b.mu.Unlock()
 
-	b.lc.Debugf("sse: Subscriber added, total=%d", len(b.subscribers))
+	b.lc.Debugf("sse: subscriber added, total=%d", total)
 	return ch
 }
 
-// Unsubscribe should only be deferred after the subscription to ensure the channel will be closed properly.
-func (b *Broadcaster) Unsubscribe(ch SubscriberCh) {
+// unsubscribe removes ch and closes it. Returns true when the broadcaster has
+// no remaining subscribers, so the caller (Manager) can decide whether to
+// tear it down.
+func (b *broadcaster) unsubscribe(ch subscriberCh) (empty bool) {
 	b.mu.Lock()
-	delete(b.subscribers, ch)
-	close(ch)
-
-	b.lc.Debugf("sse: Subscriber removed, total=%d", len(b.subscribers))
-
-	if len(b.subscribers) == 0 {
-		go b.handleNoSubscribers()
+	if _, ok := b.subscribers[ch]; ok {
+		delete(b.subscribers, ch)
+		close(ch)
 	}
+	total := len(b.subscribers)
+	empty = total == 0
 	b.mu.Unlock()
+
+	b.lc.Debugf("sse: subscriber removed, total=%d", total)
+	return empty
 }
 
-func (b *Broadcaster) handleNoSubscribers() {
-	// Stop the polling service if it is set and there are no subscribers left
-	if b.pollingService != nil {
-		if err := b.StopPolling(); err != nil {
-			b.lc.Errorf("sse: Failed to stop polling: %v", err)
-		}
-	}
-	if b.onEmptyCb != nil {
-		b.lc.Debug("sse: No subscribers left, calling onEmpty callback")
-		b.onEmptyCb()
-	}
-}
-
-// Publish sends data to all subscribers.
-func (b *Broadcaster) Publish(data any) {
+// Publish sends data to every current subscriber. Method is exported so that
+// *broadcaster satisfies the Publisher interface used by PollingService —
+// the type itself is unexported, so no external caller can obtain or invoke
+// this directly.
+func (b *broadcaster) Publish(data any) {
 	shouldSend := b.shouldSendUpdate(data)
 
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	for ch, s := range b.subscribers {
-		// Only send data to subscribers that are new or if the data has changed
-		if s.isNew || shouldSend {
+		isNew := s.isNew.Load()
+		// Only forward to subscribers that are new or when the payload changed.
+		if isNew || shouldSend {
 			select {
 			case ch <- data:
-				if s.isNew {
-					s.isNew = false // Mark the subscriber as no longer new after the first message
+				if isNew {
+					// CAS rather than plain Store so concurrent Publishes
+					// don't clobber the "first-event observed" transition.
+					s.isNew.CompareAndSwap(true, false)
 				}
-			default: // if the channel is full, dropping to avoid blocking
-				b.lc.Warn("sse: Subscriber channel is full, dropping data")
+			default:
+				// Subscriber buffer is full. Skipping this subscriber keeps the
+				// fan-out from blocking on a slow consumer.
+				b.lc.Warn("sse: subscriber channel is full, skipping this subscriber for this event")
 			}
 		}
 	}
 }
 
-// StartPolling starts the polling service if it is set.
-func (b *Broadcaster) StartPolling() {
+// startPolling kicks off the configured polling service. Manager calls this
+// exactly once per broadcaster lifetime — on the first subscribe.
+func (b *broadcaster) startPolling() {
 	if b.pollingService == nil {
-		b.lc.Debug("sse: StartPolling: no polling service defined")
+		return
 	}
-	// Use sync.Once to ensure the polling service is started only once for the same broadcaster instance.
-	b.once.Do(func() {
-		b.pollingService.Start(b)
-	})
+	b.pollingService.Start(b)
 }
 
-// StopPolling stops the polling service if it is running. It cancels the polling context and stops the service.
-func (b *Broadcaster) StopPolling() error {
+// stopPolling stops the polling service. Safe to call when polling was never
+// started: PollingService implementations treat repeated/early Stop as a
+// no-op.
+func (b *broadcaster) stopPolling() error {
 	if b.pollingService == nil {
-		b.lc.Debug("sse: StopPolling: no polling service defined")
 		return nil
 	}
 	return b.pollingService.Stop()
 }
 
-func (b *Broadcaster) shouldSendUpdate(data any) bool {
+func (b *broadcaster) shouldSendUpdate(data any) bool {
 	bytes, err := json.Marshal(data)
 	if err != nil {
-		b.lc.Errorf("sse: Failed to marshal data for hash comparison: %v", err)
+		b.lc.Errorf("sse: failed to marshal data for hash comparison: %v", err)
 		return false
 	}
 

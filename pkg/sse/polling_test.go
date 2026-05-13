@@ -13,9 +13,8 @@ import (
 	"time"
 
 	iotechErrors "github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/errors"
-	loggerMocks "github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log/mocks"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log"
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/rest"
-	"github.com/stretchr/testify/mock"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -47,13 +46,10 @@ func (p *mockPublisher) published() []any {
 	return result
 }
 
-// newTestLogger returns a mock logger with all expected calls stubbed via maybe-match.
-func newTestLogger(t *testing.T) *loggerMocks.Logger {
-	lc := &loggerMocks.Logger{}
-	lc.On("Debugf", mock.Anything, mock.Anything, mock.Anything).Maybe()
-	lc.On("Debug", mock.Anything, mock.Anything).Maybe()
-	lc.On("Errorf", mock.Anything, mock.Anything, mock.Anything).Maybe()
-	return lc
+// newTestLogger returns a no-op logger. Tests in this package don't assert on
+// log output, and a mock with fixed arities would panic on any new call site.
+func newTestLogger(_ *testing.T) log.Logger {
+	return log.NewNopeLogger()
 }
 
 // TestNewPolling_Defaults verifies that NewPolling applies default interval and API version.
