@@ -46,7 +46,7 @@ func NewX509(configFilePtr string) (X509, error) {
 	}
 
 	tlsHost := jsonX509Config.TLSServer.TLSHost
-	if strings.HasPrefix(envPrefix, tlsHost) {
+	if strings.HasPrefix(tlsHost, envPrefix) {
 		host := os.Getenv(strings.TrimPrefix(tlsHost, envPrefix))
 		if host == "" {
 			host = hostDefault
