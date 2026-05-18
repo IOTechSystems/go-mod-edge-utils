@@ -129,14 +129,14 @@ This package (and the parent `pkg/sse`) **requires** the `ResponseWriter` chain 
 
 Stock Echo + `net/http` meets this out of the box. Custom middleware that wraps the writer MUST forward `Unwrap()`. If the requirement is not met:
 
-- `WriteSSEHeaders` logs `Errorf` once at stream start naming the missing capability
-- The first event or heartbeat write returns an error and the handler exits cleanly (200 OK, no data)
+- `WriteSSEHeaders` returns an error before flushing any bytes, so `Subscribe` exits with a proper 5xx instead of committing 200 and dying on the first event
+- The diagnostic `Errorf` log names the failed `SetWriteDeadline` capability so ops can locate the offending middleware
 
 Fail-loud is intentional. Tolerating a missing deadline silently disables slow-client protection — a slow reader could otherwise keep a server-side goroutine blocked in `fmt.Fprintf` indefinitely, since no in-Go mechanism can cancel that write without `SetWriteDeadline`.
 
 Tests use a fixture that implements `SetWriteDeadline` as a no-op (see `flushableRecorder` in `subscribe_test.go`).
 
-> **Note**: no current deployment of this package uses middleware that breaks `ResponseController` — every active call site sits on stock Echo. This section is recorded as a forward reference: if some future integration ever returns 200-then-immediately-close on its first SSE request, the probe log here is the first thing to check, and the path forward is either to fix the offending middleware to forward `Unwrap()` or to introduce an explicit fallback (e.g. `goroutine + select` timeout) in `pkg/sse/utils.go`.
+> **Note**: no current deployment of this package uses middleware that breaks `ResponseController` — every active call site sits on stock Echo. This section is recorded as a forward reference: if some future integration ever returns 5xx on its first SSE request, the diagnostic log here is the first thing to check, and the path forward is either to fix the offending middleware to forward `Unwrap()` or to introduce an explicit fallback (e.g. `goroutine + select` timeout) in `pkg/sse/utils.go`.
 
 ## What this package does NOT do
 

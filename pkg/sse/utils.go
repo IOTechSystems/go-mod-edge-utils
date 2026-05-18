@@ -15,33 +15,28 @@ import (
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log"
 )
 
-// WriteSSEHeaders sets the three SSE response headers on c and flushes
-// them immediately so the client sees the text/event-stream content type
-// before any payload arrives. It also runs a one-shot probe verifying
-// that the underlying writer chain exposes SetWriteDeadline; a failure
-// is logged loudly so a misconfigured middleware/wrapper surfaces at
-// stream start rather than as a confusing first-event write error.
-func WriteSSEHeaders(c echo.Context, lc log.Logger) {
+// WriteSSEHeaders applies a write deadline, sets the three SSE response
+// headers on c, and flushes them immediately so the client sees the
+// text/event-stream content type before any payload arrives.
+//
+// The deadline is applied BEFORE the initial flush so the goroutine
+// can't hang on a slow/dead client while writing headers. writeDeadline
+// should match the per-event/heartbeat value (typically the heartbeat
+// interval). A failure to set the deadline is fatal and returned to the
+// caller before any bytes are committed — the caller can then surface a
+// proper 5xx rather than committing 200 and dying on the first event.
+// ErrNotSupported here means the writer chain (middleware/wrappers)
+// doesn't expose SetWriteDeadline; fix the writer, not this code.
+func WriteSSEHeaders(c echo.Context, writeDeadline time.Duration, lc log.Logger) error {
+	if err := applyWriteDeadline(c, writeDeadline, lc); err != nil {
+		return err
+	}
 	h := c.Response().Header()
 	h.Set(echo.HeaderContentType, "text/event-stream")
 	h.Set("Cache-Control", "no-cache")
 	h.Set("Connection", "keep-alive")
 	flush(c, lc)
-	probeWriteDeadline(c, lc)
-}
-
-// probeWriteDeadline runs once per stream — right after the SSE headers
-// flush — to surface writer-chain misconfigurations early. Passing the
-// zero time clears any deadline, so a successful probe leaves no
-// lingering side effect; a failure means the per-write deadlines in
-// WriteSSEEvent / WriteHeartbeat will also fail (and terminate the
-// stream), so logging here gives ops the diagnostic earlier than the
-// first event/heartbeat would.
-func probeWriteDeadline(c echo.Context, lc log.Logger) {
-	rc := http.NewResponseController(c.Response().Writer)
-	if err := rc.SetWriteDeadline(time.Time{}); err != nil {
-		lc.Errorf("sse: writer chain does not support SetWriteDeadline — slow-client protection unavailable; check middleware (err=%v)", err)
-	}
+	return nil
 }
 
 // WriteSSEEvent JSON-encodes payload, writes a single SSE data frame, and

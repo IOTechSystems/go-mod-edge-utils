@@ -8,19 +8,20 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log"
 )
 
-// captureLogger records Errorf calls so the probe's diagnostic log can
-// be asserted. Other levels are inherited from NopeLogger.
+// captureLogger records Errorf calls so the diagnostic log emitted by
+// applyWriteDeadline (which WriteSSEHeaders delegates to) can be
+// asserted. Other levels are inherited from NopeLogger.
 type captureLogger struct {
 	log.NopeLogger
 	mu      sync.Mutex
@@ -43,53 +44,43 @@ func (c *captureLogger) snapshotErrorfs() []string {
 
 // deadlineCapableRecorder is a httptest.ResponseRecorder that also
 // satisfies http.ResponseController's SetWriteDeadline (as a no-op),
-// exercising the "writer supports deadlines" probe branch.
+// exercising the "writer supports deadlines" branch.
 type deadlineCapableRecorder struct {
 	*httptest.ResponseRecorder
 }
 
 func (d *deadlineCapableRecorder) SetWriteDeadline(_ time.Time) error { return nil }
 
-func newProbeContext(rw http.ResponseWriter) echo.Context {
+func newSSEContext(rw http.ResponseWriter) echo.Context {
 	req := httptest.NewRequest(http.MethodGet, "/sse", nil)
 	return echo.New().NewContext(req, rw)
 }
 
-func TestProbeWriteDeadline_SilentWhenSupported(t *testing.T) {
+func TestWriteSSEHeaders_SucceedsWhenDeadlineSupported(t *testing.T) {
 	rec := &deadlineCapableRecorder{ResponseRecorder: httptest.NewRecorder()}
 	lc := &captureLogger{}
 
-	probeWriteDeadline(newProbeContext(rec), lc)
+	err := WriteSSEHeaders(newSSEContext(rec), time.Second, lc)
 
-	assert.Empty(t, lc.snapshotErrorfs(),
-		"a writer that supports SetWriteDeadline must not trigger the probe log")
+	require.NoError(t, err, "writer supports SetWriteDeadline; WriteSSEHeaders must succeed")
+	assert.Empty(t, lc.snapshotErrorfs(), "successful path must not log Errorf")
+	assert.Equal(t, "text/event-stream", rec.Header().Get(echo.HeaderContentType))
+	assert.Equal(t, "no-cache", rec.Header().Get("Cache-Control"))
+	assert.Equal(t, "keep-alive", rec.Header().Get("Connection"))
 }
 
-func TestProbeWriteDeadline_LogsWhenUnsupported(t *testing.T) {
+func TestWriteSSEHeaders_FailsWhenDeadlineUnsupported(t *testing.T) {
 	// Plain httptest.ResponseRecorder supports Flush but does NOT support
 	// SetWriteDeadline — http.ResponseController returns ErrNotSupported.
 	rec := httptest.NewRecorder()
 	lc := &captureLogger{}
 
-	probeWriteDeadline(newProbeContext(rec), lc)
+	err := WriteSSEHeaders(newSSEContext(rec), time.Second, lc)
 
+	require.Error(t, err, "missing SetWriteDeadline must be surfaced as a returned error")
 	errs := lc.snapshotErrorfs()
-	if assert.Len(t, errs, 1, "exactly one probe Errorf is expected when SetWriteDeadline is unsupported") {
-		assert.Contains(t, errs[0], "SetWriteDeadline",
-			"probe log must name the missing capability so ops can diagnose")
-	}
-}
-
-func TestWriteSSEHeaders_InvokesProbe(t *testing.T) {
-	// Smoke test: WriteSSEHeaders must drive the probe so the diagnostic
-	// fires at stream start regardless of which SSE entry point is in use.
-	rec := httptest.NewRecorder()
-	lc := &captureLogger{}
-
-	WriteSSEHeaders(newProbeContext(rec), lc)
-
-	errs := lc.snapshotErrorfs()
-	if assert.Len(t, errs, 1, "WriteSSEHeaders must invoke the probe exactly once") {
-		assert.Contains(t, strings.ToLower(errs[0]), "setwritedeadline")
+	if assert.Len(t, errs, 1, "exactly one diagnostic Errorf is expected when SetWriteDeadline is unsupported") {
+		assert.Contains(t, errs[0], "write deadline",
+			"diagnostic must name the failed capability so ops can diagnose")
 	}
 }

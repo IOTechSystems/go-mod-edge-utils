@@ -43,14 +43,20 @@ func (t *Tracker) Subscribe(c echo.Context, topic string) error {
 	ch, replay, hasReplay, isRetained := t.attach(j)
 	t.mu.RUnlock()
 
-	sse.WriteSSEHeaders(c, t.lc)
+	if err := sse.WriteSSEHeaders(c, t.heartbeat, t.lc); err != nil {
+		if !isRetained {
+			t.unsubscribe(j, ch)
+		}
+		return err
+	}
 
 	if hasReplay {
 		if err := sse.WriteSSEEvent(c, replay, t.heartbeat, t.lc); err != nil {
+			t.lc.Errorf("sse: failed to write replay event: %v", err)
 			if !isRetained {
 				t.unsubscribe(j, ch)
 			}
-			return err
+			return nil
 		}
 	}
 
@@ -116,17 +122,21 @@ func (t *Tracker) runLiveLoop(c echo.Context, j *Job, ch chan any) error {
 				}
 				j.mu.Unlock()
 				if hasTerminal {
-					return sse.WriteSSEEvent(c, terminal, t.heartbeat, t.lc)
+					if err := sse.WriteSSEEvent(c, terminal, t.heartbeat, t.lc); err != nil {
+						t.lc.Errorf("sse: failed to write terminal event: %v", err)
+					}
 				}
 				return nil
 			}
 			if err := sse.WriteSSEEvent(c, payload, t.heartbeat, t.lc); err != nil {
-				return err
+				t.lc.Errorf("sse: failed to write event: %v", err)
+				return nil
 			}
 
 		case <-heartbeat.C:
 			if err := sse.WriteHeartbeat(c, t.heartbeat, t.lc); err != nil {
-				return err
+				t.lc.Warnf("sse: heartbeat write failed: %v", err)
+				return nil
 			}
 
 		case <-reqCtx.Done():

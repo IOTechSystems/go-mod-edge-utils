@@ -60,12 +60,15 @@ func ConstructSSETopic(c echo.Context) string {
 }
 
 func handleSSE(c echo.Context, serviceCtx context.Context, b *broadcaster, ch subscriberCh, heartbeatInterval time.Duration) error {
-	WriteSSEHeaders(c, b.lc)
-
 	if heartbeatInterval <= 0 {
 		b.lc.Debug("sse: heartbeat interval is not set or invalid, using default value: 30s")
 		heartbeatInterval = defaultHeartbeatInterval
 	}
+
+	if err := WriteSSEHeaders(c, heartbeatInterval, b.lc); err != nil {
+		return err
+	}
+
 	heartbeatTicker := time.NewTicker(heartbeatInterval)
 	defer heartbeatTicker.Stop()
 
