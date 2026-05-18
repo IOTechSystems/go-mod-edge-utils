@@ -2,12 +2,20 @@
 
 package common
 
+// constants relate to the HTTP header
 const (
-	CorrelationID   = "X-Correlation-ID"
-	ContentType     = "Content-Type"
-	ContentTypeJSON = "application/json"
-	ContentTypeYAML = "application/yaml"
-	ContentTypeText = "text/plain"
+	CorrelationID          = "X-Correlation-ID"
+	ContentType            = "Content-Type"
+	ContentTypeJSON        = "application/json"
+	ContentTypeYAML        = "application/yaml"
+	ContentTypeText        = "text/plain"
+	ContentTypeEventStream = "text/event-stream"
+
+	CacheControl = "Cache-Control"
+	NoCache      = "no-cache"
+
+	Connection = "Connection"
+	KeepAlive  = "keep-alive"
 )
 
 const (

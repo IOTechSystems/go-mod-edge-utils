@@ -12,6 +12,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/common"
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log"
 )
 
@@ -32,9 +33,9 @@ func WriteSSEHeaders(c echo.Context, writeDeadline time.Duration, lc log.Logger)
 		return err
 	}
 	h := c.Response().Header()
-	h.Set(echo.HeaderContentType, "text/event-stream")
-	h.Set("Cache-Control", "no-cache")
-	h.Set("Connection", "keep-alive")
+	h.Set(echo.HeaderContentType, common.ContentTypeEventStream)
+	h.Set(common.CacheControl, common.NoCache)
+	h.Set(common.Connection, common.KeepAlive)
 	flush(c, lc)
 	return nil
 }
