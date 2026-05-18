@@ -28,13 +28,18 @@ const (
 // Tracker is a per-service registry of in-flight and recently-finished
 // Jobs, keyed by topic. See README for the API and the Start vs
 // StartOrJoin selection rule.
+//
+// Tracker holds the caller-supplied ctx directly (no WithCancel wrap):
+// its lifecycle matches the parent, so cancelling the parent wakes
+// every watchAndCleanup goroutine and every in-flight Subscribe loop.
+// If a future use case needs to shut down a Tracker independent of its
+// parent, reintroduce a cancel field + Close() — it isn't needed today.
 type Tracker struct {
 	mu        sync.RWMutex
 	jobs      map[string]*Job
 	retention time.Duration
 	heartbeat time.Duration
 	ctx       context.Context
-	cancel    context.CancelFunc
 	lc        log.Logger
 
 	// attachHookForTest is invoked by Subscribe between registry lookup
@@ -52,13 +57,11 @@ func New(ctx context.Context, retention, heartbeat time.Duration, lc log.Logger)
 		heartbeat = defaultHeartbeat
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
 	return &Tracker{
 		jobs:      make(map[string]*Job),
 		retention: retention,
 		heartbeat: heartbeat,
 		ctx:       ctx,
-		cancel:    cancel,
 		lc:        lc,
 	}
 }

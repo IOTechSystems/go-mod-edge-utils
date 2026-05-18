@@ -220,10 +220,13 @@ func TestSubscribe_LiveEventsAfterReplay(t *testing.T) {
 	events := readSSEEvents(t, rec.Body.String())
 	require.GreaterOrEqual(t, len(events), 2, "got: %v", events)
 	// Replay must be the most recent pre-subscribe payload (progress=20),
-	// not progress=10 (coalesced away).
+	// not progress=10 (coalesced away). Match on the unique message
+	// rather than `"progress":10}` — the latter depends on `progress`
+	// being the last JSON field, which only holds while it sorts last
+	// alphabetically among the keys (json.Marshal sorts map keys).
 	assert.Contains(t, events[0], `"progress":20`)
 	for _, e := range events {
-		assert.NotContains(t, e, `"progress":10}`, "older snapshot must not appear: %s", e)
+		assert.NotContains(t, e, `"history-1"`, "older snapshot must not appear: %s", e)
 	}
 	// Terminal is last.
 	assert.Contains(t, events[len(events)-1], `"progress":100`)

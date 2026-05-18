@@ -80,12 +80,20 @@ func WriteHeartbeat(c echo.Context, writeDeadline time.Duration, lc log.Logger) 
 }
 
 // applyWriteDeadline sets a per-write deadline on the response's
-// underlying connection. Any failure — including http.ErrNotSupported —
-// is treated as fatal so the SSE handler exits instead of writing
-// without slow-client protection. ErrNotSupported indicates the writer
-// (or its wrappers) doesn't expose deadline-setting; the right place to
-// fix that is the writer/middleware, not here.
+// underlying connection. A non-positive d would resolve to an
+// immediate/past deadline and fail every subsequent write, so it is
+// defensively replaced with defaultHeartbeatInterval and a Warnf is
+// emitted — exported helpers shouldn't surprise callers with timeouts
+// from arithmetic. Any SetWriteDeadline failure (including
+// http.ErrNotSupported) is treated as fatal so the SSE handler exits
+// instead of writing without slow-client protection; ErrNotSupported
+// indicates the writer (or its wrappers) doesn't expose
+// deadline-setting, which is a middleware fix, not a runtime one.
 func applyWriteDeadline(c echo.Context, d time.Duration, lc log.Logger) error {
+	if d <= 0 {
+		lc.Warnf("sse: non-positive write deadline %v; using default %v", d, defaultHeartbeatInterval)
+		d = defaultHeartbeatInterval
+	}
 	rc := http.NewResponseController(c.Response().Writer)
 	if err := rc.SetWriteDeadline(time.Now().Add(d)); err != nil {
 		lc.Errorf("sse: failed to set write deadline: %v", err)
