@@ -387,12 +387,24 @@ func SendRequest(ctx context.Context, req *http.Request, authInjector interfaces
 	}
 
 	var errMsg string
-	var errResp models.BaseResponse
-	// If the bodyBytes can be unmarshalled to BaseResponse DTO, use the BaseResponse.Message field as the error message
-	// Otherwise, use the whole bodyBytes string as the error message
-	baseRespErr := json.Unmarshal(bodyBytes, &errResp)
-	if baseRespErr == nil {
+	// Try to extract the error message and optional details from the response body.
+	// Some services (e.g., alarm service) return an ErrorResponse with a "details"
+	// array alongside the top-level "message". When present, the detail messages
+	// are appended so callers can surface actionable info.
+	var errResp models.ErrorResponse
+	if json.Unmarshal(bodyBytes, &errResp) == nil {
 		errMsg = errResp.Message
+		if len(errResp.Details) > 0 {
+			var detailMsgs []string
+			for _, d := range errResp.Details {
+				if d.Message != "" {
+					detailMsgs = append(detailMsgs, d.Message)
+				}
+			}
+			if len(detailMsgs) > 0 {
+				errMsg += ": " + strings.Join(detailMsgs, "; ")
+			}
+		}
 	} else {
 		errMsg = string(bodyBytes)
 	}
