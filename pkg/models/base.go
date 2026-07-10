@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2020-2023 IOTech Ltd
+// Copyright (C) 2020-2026 IOTech Ltd
 //
 // SPDX-License-Identifier: Apache-2.0
 
@@ -48,4 +48,18 @@ func NewBaseResponse(requestId string, message string, statusCode int) BaseRespo
 		Message:     message,
 		StatusCode:  statusCode,
 	}
+}
+
+// ErrorDetail represents a single error detail entry in an ErrorResponse.
+type ErrorDetail struct {
+	Message string `json:"message,omitempty"`
+}
+
+// ErrorResponse defines an error response that may include actionable details.
+// Compatible with services that return a top-level "message" and optional
+// "details" array. When unmarshalling, additional BaseResponse fields
+// (e.g. apiVersion, requestId, statusCode) are ignored.
+type ErrorResponse struct {
+	Message string        `json:"message,omitempty"`
+	Details []ErrorDetail `json:"details,omitempty"`
 }
