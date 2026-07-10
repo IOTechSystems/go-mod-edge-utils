@@ -56,9 +56,9 @@ type ErrorDetail struct {
 }
 
 // ErrorResponse defines an error response that may include actionable details.
-// This is compatible with services (e.g., alarm service) that return a "details"
-// array alongside the top-level "message". It also handles standard BaseResponse
-// format (message-only) since the Details field is optional.
+// Compatible with services that return a top-level "message" and optional
+// "details" array. When unmarshalling, additional BaseResponse fields
+// (e.g. apiVersion, requestId, statusCode) are ignored.
 type ErrorResponse struct {
 	Message string        `json:"message,omitempty"`
 	Details []ErrorDetail `json:"details,omitempty"`

@@ -393,16 +393,21 @@ func SendRequest(ctx context.Context, req *http.Request, authInjector interfaces
 	// are appended so callers can surface actionable info.
 	var errResp models.ErrorResponse
 	if json.Unmarshal(bodyBytes, &errResp) == nil {
-		errMsg = errResp.Message
-		if len(errResp.Details) > 0 {
-			var detailMsgs []string
-			for _, d := range errResp.Details {
-				if d.Message != "" {
-					detailMsgs = append(detailMsgs, d.Message)
-				}
+		errMsg = strings.TrimSpace(errResp.Message)
+		detailMsgs := make([]string, 0, len(errResp.Details))
+		for _, d := range errResp.Details {
+			msg := strings.TrimSpace(d.Message)
+			if msg != "" {
+				detailMsgs = append(detailMsgs, msg)
 			}
-			if len(detailMsgs) > 0 {
+		}
+		if errMsg == "" && len(detailMsgs) == 0 {
+			errMsg = string(bodyBytes)
+		} else if len(detailMsgs) > 0 {
+			if errMsg != "" {
 				errMsg += ": " + strings.Join(detailMsgs, "; ")
+			} else {
+				errMsg = strings.Join(detailMsgs, "; ")
 			}
 		}
 	} else {
