@@ -22,8 +22,13 @@ import (
 type emptyAuthenticationInjector struct {
 }
 
-func (_ *emptyAuthenticationInjector) AddAuthenticationData(_ *http.Request) error {
+func (*emptyAuthenticationInjector) AddAuthenticationData(_ *http.Request) error {
 	// Do nothing to the request; used for unit tests
+	return nil
+}
+
+func (*emptyAuthenticationInjector) RoundTripper() http.RoundTripper {
+	// Return nil to fall back to http.DefaultTransport; used for unit tests
 	return nil
 }
 

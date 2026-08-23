@@ -17,6 +17,7 @@ jobs:
     uses: IOTechSystems/github-action-workflow/.github/workflows/reusable-golangci-lint.yml@main
     with:
       GO_LINT_CONFIG_PATH: .golangci.yml
+      GO_LINT_VERSION: v2.5.0
   call-sonar-scan:
     uses: IOTechSystems/github-action-workflow/.github/workflows/reusable-sonarqube-scan.yml@main
     with:

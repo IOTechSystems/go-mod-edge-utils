@@ -194,7 +194,7 @@ func (e *Variables) buildOverrideNames(paths []string) map[string]string {
 	return names
 }
 
-func (_ *Variables) getOverrideNameFor(path string) string {
+func (*Variables) getOverrideNameFor(path string) string {
 	// "/" & "-" are the only special character allowed in path not allowed in environment variable Name
 	override := strings.ReplaceAll(path, configPathSeparator, envNameSeparator)
 	override = strings.ReplaceAll(override, configNameSeparator, envNameSeparator)
@@ -203,7 +203,7 @@ func (_ *Variables) getOverrideNameFor(path string) string {
 }
 
 // convertToType attempts to convert the string value to the specified type of the old value
-func (_ *Variables) convertToType(oldValue any, value string) (newValue any, err error) {
+func (v *Variables) convertToType(oldValue any, value string) (newValue any, err error) {
 	switch oldValue.(type) {
 	case []string:
 		newValue = parseCommaSeparatedSlice(value)

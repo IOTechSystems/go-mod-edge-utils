@@ -23,15 +23,15 @@ func NewJWTSecretProvider(secretProvider interfaces.SecretProvider) clientinterf
 	}
 }
 
-func (self *jwtSecretProvider) AddAuthenticationData(req *http.Request) error {
-	if self.secretProvider == nil {
+func (p *jwtSecretProvider) AddAuthenticationData(req *http.Request) error {
+	if p.secretProvider == nil {
 		// Test cases or real code may invoke NewJWTSecretProvider(nil),
 		// though this is discouraged. In that case, just do nothing.
 		return nil
 	}
 
 	// Otherwise if there is a secret provider, get the JWT
-	jwt, err := self.secretProvider.GetSelfJWT()
+	jwt, err := p.secretProvider.GetSelfJWT()
 	if err != nil {
 		return err
 	}
@@ -41,5 +41,12 @@ func (self *jwtSecretProvider) AddAuthenticationData(req *http.Request) error {
 		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", jwt))
 	}
 
+	return nil
+}
+
+// RoundTripper returns nil so that net/http falls back to http.DefaultTransport.
+// This provider only decorates the request with a JWT; it does not supply a
+// custom (e.g. mTLS) transport.
+func (p *jwtSecretProvider) RoundTripper() http.RoundTripper {
 	return nil
 }

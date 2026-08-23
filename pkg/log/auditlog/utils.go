@@ -37,12 +37,12 @@ func replaceAttr(groups []string, a slog.Attr) slog.Attr {
 		// Handle custom level values
 		level := a.Value.Any().(slog.Level)
 
-		switch {
-		case level == FullCoverageLevel:
+		switch level {
+		case FullCoverageLevel:
 			a.Value = slog.StringValue(FullCoverage)
-		case level == AdvancedCoverageLevel:
+		case AdvancedCoverageLevel:
 			a.Value = slog.StringValue(AdvancedCoverage)
-		case level == BaseCoverageLevel:
+		case BaseCoverageLevel:
 			a.Value = slog.StringValue(BaseCoverage)
 		default:
 			a.Value = slog.StringValue(BaseCoverage)

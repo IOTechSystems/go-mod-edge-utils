@@ -298,10 +298,43 @@ func checkValueRange(name string, value, min, max int) errors.Error {
 }
 
 // GetRequest makes the get request and return the body
-func GetRequest(ctx context.Context, returnValuePointer interface{}, baseUrl string, requestPath string, requestParams url.Values, authInjector interfaces.AuthenticationInjector) error {
+func GetRequest(ctx context.Context, returnValuePointer interface{}, baseUrl string, requestPath string, requestParams url.Values, authInjector interfaces.AuthenticationInjector) errors.Error {
 	req, err := CreateRequest(ctx, http.MethodGet, baseUrl, requestPath, requestParams)
 	if err != nil {
-		return err
+		return errors.BaseErrorWrapper(err)
+	}
+
+	return processRequest(ctx, returnValuePointer, req, authInjector)
+}
+
+// PostRequestWithRawData makes the post JSON request with raw data and return the body
+func PostRequestWithRawData(
+	ctx context.Context,
+	returnValuePointer any,
+	baseUrl string, requestPath string,
+	requestParams url.Values,
+	data any, authInjector interfaces.AuthenticationInjector) errors.Error {
+
+	req, err := CreateRequestWithRawData(ctx, http.MethodPost, baseUrl, requestPath, requestParams, data)
+	if err != nil {
+		return errors.BaseErrorWrapper(err)
+	}
+
+	return processRequest(ctx, returnValuePointer, req, authInjector)
+}
+
+// PostRequestWithRawDataAndHeaders makes the post JSON request with raw data and additional request headers, and returns the body
+func PostRequestWithRawDataAndHeaders(
+	ctx context.Context,
+	returnValuePointer any,
+	baseUrl string, requestPath string,
+	requestParams url.Values,
+	data any, authInjector interfaces.AuthenticationInjector,
+	headers map[string]string) errors.Error {
+
+	req, err := CreateRequestWithRawDataAndHeaders(ctx, http.MethodPost, baseUrl, requestPath, requestParams, data, headers)
+	if err != nil {
+		return errors.BaseErrorWrapper(err)
 	}
 
 	return processRequest(ctx, returnValuePointer, req, authInjector)
@@ -313,11 +346,11 @@ func PutRequest(
 	returnValuePointer any,
 	baseUrl string, requestPath string,
 	requestParams url.Values,
-	data any, authInjector interfaces.AuthenticationInjector) error {
+	data any, authInjector interfaces.AuthenticationInjector) errors.Error {
 
 	req, err := CreateRequestWithRawData(ctx, http.MethodPut, baseUrl, requestPath, requestParams, data)
 	if err != nil {
-		return err
+		return errors.BaseErrorWrapper(err)
 	}
 
 	return processRequest(ctx, returnValuePointer, req, authInjector)
@@ -325,17 +358,17 @@ func PutRequest(
 
 // processRequest is a helper function to process the request and get the return value
 func processRequest(ctx context.Context,
-	returnValuePointer any, req *http.Request, authInjector interfaces.AuthenticationInjector) error {
+	returnValuePointer any, req *http.Request, authInjector interfaces.AuthenticationInjector) errors.Error {
 	resp, err := SendRequest(ctx, req, authInjector)
 	if err != nil {
-		return err
+		return errors.BaseErrorWrapper(err)
 	}
 	// Check the response content length to avoid json unmarshal error
 	if len(resp) == 0 {
 		return nil
 	}
 	if err := json.Unmarshal(resp, returnValuePointer); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("failed to parse the response body: %v", err))
+		return errors.NewBaseError(errors.KindContractInvalid, "failed to parse the response body", err)
 	}
 	return nil
 }
@@ -370,16 +403,16 @@ func FromContext(ctx context.Context, key string) string {
 
 // SendRequest will make a request with raw data to the specified URL.
 // It returns the body as a byte array if successful and an error otherwise.
-func SendRequest(ctx context.Context, req *http.Request, authInjector interfaces.AuthenticationInjector) ([]byte, error) {
+func SendRequest(ctx context.Context, req *http.Request, authInjector interfaces.AuthenticationInjector) ([]byte, errors.Error) {
 	resp, err := makeRequest(req, authInjector)
 	if err != nil {
-		return nil, err
+		return nil, errors.BaseErrorWrapper(err)
 	}
 	defer resp.Body.Close()
 
 	bodyBytes, err := getBody(resp)
 	if err != nil {
-		return nil, err
+		return nil, errors.BaseErrorWrapper(err)
 	}
 
 	if resp.StatusCode <= http.StatusMultiStatus {
@@ -416,58 +449,58 @@ func SendRequest(ctx context.Context, req *http.Request, authInjector interfaces
 
 	// Handle error response
 	msg := fmt.Sprintf("request failed, status code: %d, err: %s", resp.StatusCode, errMsg)
-	return bodyBytes, echo.NewHTTPError(resp.StatusCode, msg)
+	return bodyBytes, errors.NewBaseError(errors.KindMapping(resp.StatusCode), msg, nil)
 }
 
-func CreateRequest(ctx context.Context, httpMethod string, baseUrl string, requestPath string, requestParams url.Values) (*http.Request, error) {
+func CreateRequest(ctx context.Context, httpMethod string, baseUrl string, requestPath string, requestParams url.Values) (*http.Request, errors.Error) {
 	u, err := parseBaseUrlAndRequestPath(baseUrl, requestPath)
 	if err != nil {
-		return nil, echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to parse baseUrl and requestPath: %v", err))
+		return nil, errors.NewBaseError(errors.KindServerError, "failed to parse baseUrl and requestPath", err)
 	}
 	if requestParams != nil {
 		u.RawQuery = requestParams.Encode()
 	}
 	req, err := http.NewRequest(httpMethod, u.String(), nil)
 	if err != nil {
-		return nil, echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to create a http request: %v", err))
+		return nil, errors.NewBaseError(errors.KindServerError, "failed to create a http request", err)
 	}
 	req.Header.Set(common.CorrelationHeader, correlatedId(ctx))
 	return req, nil
 }
 
 // Helper method to make the request and return the response
-func makeRequest(req *http.Request, authInjector interfaces.AuthenticationInjector) (*http.Response, error) {
+func makeRequest(req *http.Request, authInjector interfaces.AuthenticationInjector) (*http.Response, errors.Error) {
+	client := &http.Client{}
 	if authInjector != nil {
 		if err := authInjector.AddAuthenticationData(req); err != nil {
-			return nil, err
+			return nil, errors.NewBaseError(errors.KindServerError, "failed to inject authentication data", err)
 		}
+		client.Transport = authInjector.RoundTripper()
 	}
-
-	client := &http.Client{}
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, echo.NewHTTPError(http.StatusServiceUnavailable, fmt.Sprintf("failed to send a http request: %v", err))
+		return nil, errors.NewBaseError(errors.KindServiceUnavailable, "failed to send a http request", err)
 	}
 	if resp == nil {
-		return nil, echo.NewHTTPError(http.StatusInternalServerError, "the response should not be a nil")
+		return nil, errors.NewBaseError(errors.KindServerError, "the response should not be a nil", nil)
 	}
 	return resp, nil
 }
 
 // Helper method to get the body from the response after making the request
-func getBody(resp *http.Response) ([]byte, error) {
+func getBody(resp *http.Response) ([]byte, errors.Error) {
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return body, echo.NewHTTPError(http.StatusRequestedRangeNotSatisfiable, fmt.Sprintf("failed to read the response body: %v", err))
+		return body, errors.NewBaseError(errors.KindIOError, "failed to read the response body", err)
 	}
 	return body, nil
 }
 
-func CreateRequestWithRawData(ctx context.Context, httpMethod string, baseUrl string, requestPath string, requestParams url.Values, data any) (*http.Request, error) {
+func CreateRequestWithRawData(ctx context.Context, httpMethod string, baseUrl string, requestPath string, requestParams url.Values, data any) (*http.Request, errors.Error) {
 	u, err := parseBaseUrlAndRequestPath(baseUrl, requestPath)
 	if err != nil {
-		return nil, echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to parse baseUrl and requestPath: %v", err))
+		return nil, errors.NewBaseError(errors.KindServerError, "failed to parse baseUrl and requestPath", err)
 	}
 	if requestParams != nil {
 		u.RawQuery = requestParams.Encode()
@@ -475,7 +508,7 @@ func CreateRequestWithRawData(ctx context.Context, httpMethod string, baseUrl st
 
 	jsonEncodedData, err := json.Marshal(data)
 	if err != nil {
-		return nil, echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("failed to encode input data to JSON: %v", err))
+		return nil, errors.NewBaseError(errors.KindContractInvalid, "failed to encode input data to JSON", err)
 	}
 
 	content := FromContext(ctx, common.ContentType)
@@ -485,9 +518,24 @@ func CreateRequestWithRawData(ctx context.Context, httpMethod string, baseUrl st
 
 	req, err := http.NewRequest(httpMethod, u.String(), bytes.NewReader(jsonEncodedData))
 	if err != nil {
-		return nil, echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to create a http request: %v", err))
+		return nil, errors.NewBaseError(errors.KindServerError, "failed to create a http request", err)
 	}
 	req.Header.Set(common.ContentType, content)
 	req.Header.Set(common.CorrelationHeader, correlatedId(ctx))
+	return req, nil
+}
+
+// CreateRequestWithRawDataAndHeaders creates a request with raw JSON data and adds the additional request headers.
+func CreateRequestWithRawDataAndHeaders(ctx context.Context, httpMethod string, baseUrl string, requestPath string, requestParams url.Values, data any, headers map[string]string) (*http.Request, errors.Error) {
+	req, err := CreateRequestWithRawData(ctx, httpMethod, baseUrl, requestPath, requestParams, data)
+	if err != nil {
+		return nil, errors.BaseErrorWrapper(err)
+	}
+
+	// Add the additional headers from request
+	for name, value := range headers {
+		req.Header.Set(name, value)
+	}
+
 	return req, nil
 }

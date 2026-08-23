@@ -38,7 +38,7 @@ func generatePrivateKey(certificateSeed seed.CertificateSeed, logger log.Logger)
 		}
 	}
 
-	return nil, fmt.Errorf("Unknown key scheme: RSA[%t] EC[%t]", certificateSeed.RSAScheme, certificateSeed.ECScheme)
+	return nil, fmt.Errorf("unknown key scheme: RSA[%t] EC[%t]", certificateSeed.RSAScheme, certificateSeed.ECScheme)
 }
 
 // dumpKeyPair output sk,pk keypair (RSA or EC) to console
