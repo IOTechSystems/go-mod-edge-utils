@@ -76,6 +76,35 @@ func TestRegister_PanicsOnLocalWithRoutes(t *testing.T) {
 	assert.Contains(t, got, "marked local but declares upstream routes")
 }
 
+// A local tool uses no upstream service, so giving it a service key would make it
+// wait on something it never calls.
+func TestRegister_PanicsOnLocalWithServiceKey(t *testing.T) {
+	got := registerPanic(t, Tool[testContainer]{
+		Name:       "zz_local_with_key",
+		Local:      true,
+		Behaviour:  ReadOnly,
+		ServiceKey: "core-metadata",
+		Add:        noopAdd,
+	})
+
+	require.NotNil(t, got)
+	assert.Contains(t, got, "marked local but declares service key")
+}
+
+// A mapped tool with no service key skips the up-check and loads even when its
+// upstream service is down.
+func TestRegister_PanicsOnMappedWithoutServiceKey(t *testing.T) {
+	got := registerPanic(t, Tool[testContainer]{
+		Name:             "zz_mapped_no_key",
+		Behaviour:        ReadOnly,
+		VisibilityRoutes: []Route{ServiceRoute("core-metadata", "/api/v3/device/all", http.MethodGet)},
+		Add:              noopAdd,
+	})
+
+	require.NotNil(t, got)
+	assert.Contains(t, got, "declares no service key and is not marked local")
+}
+
 func TestRegister_PanicsOnDuplicateName(t *testing.T) {
 	r := NewRegistry[testContainer]()
 	r.Register(Tool[testContainer]{Name: "zz_dup", Local: true, Behaviour: ReadOnly, Add: noopAdd})

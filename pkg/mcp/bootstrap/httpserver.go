@@ -114,7 +114,10 @@ func (b *HttpServer) BootstrapHandler(
 		// return on their own; force-close after the deadline.
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownGracePeriod)
 		defer cancel()
-		_ = server.Shutdown(shutdownCtx)
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			logger.Warnf("graceful web server shutdown exceeded %s; forcing close: %v", shutdownGracePeriod, err)
+			_ = server.Close()
+		}
 		logger.Info("Web server shut down")
 	}()
 

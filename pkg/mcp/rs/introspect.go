@@ -7,9 +7,11 @@ package rs
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/errors"
 	mcpCommon "github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/mcp/common"
-	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/models"
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/rest"
 	restinterfaces "github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/rest/interfaces"
 )
@@ -42,6 +44,16 @@ func (v *httpValidator) Validate(ctx context.Context, authzHeader, resource stri
 		mcpCommon.AuthorizationHeader:     authzHeader,
 		mcpCommon.ForwardedResourceHeader: resource,
 	}
-	var res models.BaseResponse
-	return rest.PostRequestWithRawDataAndHeaders(ctx, &res, v.baseURL, ValidateRoute, nil, nil, v.injector, headers)
+	req, err := rest.CreateRequestWithRawDataAndHeaders(ctx, http.MethodPost, v.baseURL, ValidateRoute, nil, nil, headers)
+	if err != nil {
+		return err
+	}
+	status, _, err := rest.SendRequestReturningStatus(ctx, req, v.injector)
+	if err != nil {
+		return err
+	}
+	if status != http.StatusNoContent {
+		return errors.NewBaseError(errors.KindServerError, fmt.Sprintf("token validation returned unexpected status %d", status), nil)
+	}
+	return nil
 }

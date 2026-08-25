@@ -39,8 +39,10 @@ func TestRequestLimitMiddleware(t *testing.T) {
 	}
 
 	for _, testCase := range tests {
+		handlerCalled := false
 		middleware := RequestLimitMiddleware(testCase.sizeLimit, mockLogger)
 		handler := middleware(func(c echo.Context) error {
+			handlerCalled = true
 			c.Response().WriteHeader(http.StatusOK)
 			return nil
 		})
@@ -65,6 +67,9 @@ func TestRequestLimitMiddleware(t *testing.T) {
 			assert.Equal(t, common.ContentTypeJSON, resp.Header.Get(common.ContentType), "http header Content-Type is not as expected")
 			assert.Equal(t, http.StatusRequestEntityTooLarge, res.StatusCode, "Response status code not as expected")
 			assert.NotEmpty(t, res.Message, "Response message doesn't contain the error message")
+			assert.False(t, handlerCalled, "downstream handler should not be invoked for an oversized request")
+		} else {
+			assert.True(t, handlerCalled, "downstream handler should be invoked for a request within the limit")
 		}
 	}
 }

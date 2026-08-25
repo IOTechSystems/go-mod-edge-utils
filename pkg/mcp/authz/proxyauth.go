@@ -7,10 +7,11 @@ package authz
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/errors"
 	mcpCommon "github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/mcp/common"
-	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/models"
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/rest"
 	restinterfaces "github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/rest/interfaces"
 )
@@ -33,9 +34,10 @@ type ProxyAuth struct {
 	Resource string
 }
 
-// Allow reports whether the caller may take route with method. A 204 allows and
-// a 403 denies; anything else — including a 401 for an invalid token — is
-// returned as an error, so no call is ever allowed without an explicit 204.
+// Allow reports whether the caller may take route with method. Only an explicit
+// 204 allows; a 403 denies; a 401 for a rejected token is surfaced as a sentinel.
+// Anything else — an unexpected 2xx, a 5xx, or a transport failure — is returned
+// as an error, so no call is ever allowed without an explicit 204 (fail closed).
 func (p ProxyAuth) Allow(ctx context.Context, bearer, route, method string) (bool, error) {
 	headers := map[string]string{
 		mcpCommon.AuthorizationHeader:     bearer,
@@ -44,19 +46,25 @@ func (p ProxyAuth) Allow(ctx context.Context, bearer, route, method string) (boo
 		mcpCommon.ForwardedResourceHeader: p.Resource,
 	}
 
-	var res models.BaseResponse
-	err := rest.PostRequestWithRawDataAndHeaders(ctx, &res, p.BaseURL, OAuthRouteAuthPath, nil, nil, p.Injector, headers)
-	if err == nil {
+	req, err := rest.CreateRequestWithRawDataAndHeaders(ctx, http.MethodPost, p.BaseURL, OAuthRouteAuthPath, nil, nil, headers)
+	if err != nil {
+		return false, err
+	}
+	statusCode, _, err := rest.SendRequestReturningStatus(ctx, req, p.Injector)
+	switch statusCode {
+	case http.StatusNoContent: // 204: the only explicit allow.
 		return true, nil
-	}
-	if errors.Kind(err) == errors.KindForbidden {
+	case http.StatusForbidden: // 403: an explicit deny.
 		return false, nil
-	}
-	// A rejected token is a third outcome, not an outage: it is an answer about
-	// the caller, and the client can act on it by re-authenticating. Reported as
-	// a sentinel so nothing downstream has to re-derive it from an error kind.
-	if errors.Kind(err) == errors.KindUnauthorized {
+	case http.StatusUnauthorized:
+		// A rejected token is a third outcome, not an outage: it is an answer about
+		// the caller, and the client can act on it by re-authenticating. Reported as
+		// a sentinel so nothing downstream has to re-derive it from an error kind.
 		return false, &UnauthenticatedError{Route: route, Method: method, Err: err}
+	}
+
+	if err == nil {
+		err = errors.NewBaseError(errors.KindServerError, fmt.Sprintf("proxy-auth returned unexpected status %d", statusCode), nil)
 	}
 	return false, err
 }

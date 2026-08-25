@@ -18,10 +18,20 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
 )
+
+// idRe limits a doc id to a slug: alphanumerics with - _ . ~ as internal
+// separators. Those four separators are all RFC 3986 unreserved, so the id goes
+// into the resource URI verbatim without escaping or changing how the URI
+// parses. The id is the only field concatenated into the advertised URI (see
+// Store.URI), so an id with a space, %, #, or ? would either make that URI
+// invalid or push part of it into a query/fragment — a resource that fails to
+// read back rather than one that fails at startup.
+var idRe = regexp.MustCompile(`^[A-Za-z0-9]+(?:[-_.~][A-Za-z0-9]+)*$`)
 
 // DefaultRoot is the directory within the filesystem walked for docs when
 // Options.Root is empty.
@@ -96,6 +106,11 @@ func New(fsys fs.FS, opts Options) (*Store, error) {
 				"so a nested file could collide with one at another depth", path, opts.Root)
 		}
 		id := strings.TrimSuffix(filepath.Base(path), ".md")
+		if !idRe.MatchString(id) {
+			return nil, fmt.Errorf("%s: id %q is not URI-safe; the id is the "+
+				"filename and goes verbatim into the resource URI, so it must be a "+
+				"lowercase slug matching %s", path, id, idRe)
+		}
 		name, rest, err := splitH1(body)
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", path, err)

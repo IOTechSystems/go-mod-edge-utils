@@ -147,6 +147,16 @@ func (r *Registry[C]) Register(t Tool[C]) {
 		panic(fmt.Sprintf("tool: %q declares no visibility routes and is not marked local", t.Name))
 	}
 
+	// ServiceKey says which upstream service must be up before this tool loads. A
+	// mapped tool without one skips that check and loads even when its service is
+	// down; a local tool with one waits on a service it never uses.
+	switch {
+	case t.Local && t.ServiceKey != "":
+		panic(fmt.Sprintf("tool: %q is marked local but declares service key %q", t.Name, t.ServiceKey))
+	case !t.Local && t.ServiceKey == "":
+		panic(fmt.Sprintf("tool: %q declares no service key and is not marked local", t.Name))
+	}
+
 	switch t.Behaviour {
 	case ReadOnly, Additive, Destructive:
 	default:

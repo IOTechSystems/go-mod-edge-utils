@@ -27,6 +27,43 @@ func TestIDComesFromFilename(t *testing.T) {
 	assert.Equal(t, "onboard-device", d.ID)
 }
 
+// The id is concatenated verbatim into the resource URI (Store.URI), so a
+// filename with a character that is unsafe there — a space or %, which make the
+// URI invalid, or a # or ?, which push part of it into a fragment/query — must
+// fail at startup rather than advertise a URI that cannot be read back.
+func TestNonURISafeIDIsRejected(t *testing.T) {
+	for _, name := range []string{
+		"my doc.md",   // space
+		"50%off.md",   // bare percent
+		"intro#v2.md", // fragment delimiter
+		"faq?.md",     // query delimiter
+	} {
+		t.Run(name, func(t *testing.T) {
+			mustFail(t, map[string]string{
+				name: "---\ntags: [devices]\n---\n# T\n\nbody\n",
+			}, "not URI-safe")
+		})
+	}
+}
+
+// The RFC 3986 unreserved separators are safe in a URI verbatim, so an id using
+// them builds.
+func TestURISafeIDBuilds(t *testing.T) {
+	for _, name := range []string{
+		"onboard-device.md",
+		"modbus_devices.md",
+		"v1.2.md",
+		"a~b.md",
+		"MixedCase.md",
+	} {
+		t.Run(name, func(t *testing.T) {
+			mustBuild(t, map[string]string{
+				name: "---\ntags: [devices]\n---\n# T\n\nbody\n",
+			})
+		})
+	}
+}
+
 // The H1 is the MCP Resource.Name. Without it the resource has no name.
 func TestNameComesFromH1(t *testing.T) {
 	s, err := build(t, map[string]string{

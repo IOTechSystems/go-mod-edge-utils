@@ -84,6 +84,8 @@ func RequestLimitMiddleware(sizeLimit int64, logger log.Logger) echo.MiddlewareF
 						w.Committed = false
 						return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 					}
+					// stop processing the oversized request so the downstream handler is not invoked
+					return nil
 				}
 			}
 			return next(c)

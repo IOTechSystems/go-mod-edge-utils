@@ -269,6 +269,9 @@ func TestProxyAuth_MapsStatusesToDecisions(t *testing.T) {
 		{"403 denies", http.StatusForbidden, false, false},
 		{"401 is not a decision", http.StatusUnauthorized, false, true},
 		{"500 is not a decision", http.StatusInternalServerError, false, true},
+		{"200 is not a decision", http.StatusOK, false, true},
+		{"202 is not a decision", http.StatusAccepted, false, true},
+		{"207 is not a decision", http.StatusMultiStatus, false, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var gotHeaders http.Header

@@ -157,6 +157,9 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if !allowed {
 		return nil, &DeniedError{Route: route, Method: req.Method}
 	}
+	if t.Ctx != nil {
+		req = req.WithContext(t.Ctx)
+	}
 	return t.Next.RoundTrip(req)
 }
 

@@ -404,19 +404,27 @@ func FromContext(ctx context.Context, key string) string {
 // SendRequest will make a request with raw data to the specified URL.
 // It returns the body as a byte array if successful and an error otherwise.
 func SendRequest(ctx context.Context, req *http.Request, authInjector interfaces.AuthenticationInjector) ([]byte, errors.Error) {
+	_, body, err := SendRequestReturningStatus(ctx, req, authInjector)
+	return body, err
+}
+
+// SendRequestReturningStatus behaves like SendRequest but also returns the HTTP
+// status code, letting callers branch on an exact status (e.g. 204 vs other 2xx).
+// The status code is 0 when the request could not be sent (no response received).
+func SendRequestReturningStatus(ctx context.Context, req *http.Request, authInjector interfaces.AuthenticationInjector) (int, []byte, errors.Error) {
 	resp, err := makeRequest(req, authInjector)
 	if err != nil {
-		return nil, errors.BaseErrorWrapper(err)
+		return 0, nil, errors.BaseErrorWrapper(err)
 	}
 	defer resp.Body.Close()
 
 	bodyBytes, err := getBody(resp)
 	if err != nil {
-		return nil, errors.BaseErrorWrapper(err)
+		return resp.StatusCode, nil, errors.BaseErrorWrapper(err)
 	}
 
 	if resp.StatusCode <= http.StatusMultiStatus {
-		return bodyBytes, nil
+		return resp.StatusCode, bodyBytes, nil
 	}
 
 	var errMsg string
@@ -449,7 +457,7 @@ func SendRequest(ctx context.Context, req *http.Request, authInjector interfaces
 
 	// Handle error response
 	msg := fmt.Sprintf("request failed, status code: %d, err: %s", resp.StatusCode, errMsg)
-	return bodyBytes, errors.NewBaseError(errors.KindMapping(resp.StatusCode), msg, nil)
+	return resp.StatusCode, bodyBytes, errors.NewBaseError(errors.KindMapping(resp.StatusCode), msg, nil)
 }
 
 func CreateRequest(ctx context.Context, httpMethod string, baseUrl string, requestPath string, requestParams url.Values) (*http.Request, errors.Error) {
@@ -516,7 +524,7 @@ func CreateRequestWithRawData(ctx context.Context, httpMethod string, baseUrl st
 		content = common.ContentTypeJSON
 	}
 
-	req, err := http.NewRequest(httpMethod, u.String(), bytes.NewReader(jsonEncodedData))
+	req, err := http.NewRequestWithContext(ctx, httpMethod, u.String(), bytes.NewBuffer(jsonEncodedData))
 	if err != nil {
 		return nil, errors.NewBaseError(errors.KindServerError, "failed to create a http request", err)
 	}
