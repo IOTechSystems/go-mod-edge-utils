@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/errors"
 	mcpCommon "github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/mcp/common"
@@ -20,6 +21,13 @@ import (
 // route authorization). It lives under the isolated /api/v3/oauth/* namespace; the
 // first-party /api/v3/auth gateway path rejects OAuth-class tokens.
 const ValidateRoute = "/api/v3/oauth/validate"
+
+// validationTimeout bounds the proxy-auth introspection call. The MCP server
+// omits the request-timeout middleware and the rest package's http.Client has no
+// Timeout, so without this a proxy-auth that accepts the connection and never
+// answers would pin the calling goroutine for as long as the caller stays
+// connected.
+const validationTimeout = 30 * time.Second
 
 // TokenValidator authenticates a bearer against proxy-auth introspection.
 type TokenValidator interface {
@@ -40,6 +48,9 @@ func NewHTTPValidator(baseURL string, injector restinterfaces.AuthenticationInje
 }
 
 func (v *httpValidator) Validate(ctx context.Context, authzHeader, resource string) error {
+	ctx, cancel := context.WithTimeout(ctx, validationTimeout)
+	defer cancel()
+
 	headers := map[string]string{
 		mcpCommon.AuthorizationHeader:     authzHeader,
 		mcpCommon.ForwardedResourceHeader: resource,

@@ -37,6 +37,7 @@ declares 11:
 ```go
 register(Tool{
     Name:       NameManageDevice,
+    Behaviour:  Destructive,
     ServiceKey: coreCommon.CoreMetaDataServiceKey,
     VisibilityRoutes: []Route{
         MetadataRoute(coreCommon.ApiDeviceRoute, http.MethodPost),

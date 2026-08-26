@@ -412,7 +412,7 @@ func SendRequest(ctx context.Context, req *http.Request, authInjector interfaces
 // status code, letting callers branch on an exact status (e.g. 204 vs other 2xx).
 // The status code is 0 when the request could not be sent (no response received).
 func SendRequestReturningStatus(ctx context.Context, req *http.Request, authInjector interfaces.AuthenticationInjector) (int, []byte, errors.Error) {
-	resp, err := makeRequest(req, authInjector)
+	resp, err := makeRequest(req.WithContext(ctx), authInjector)
 	if err != nil {
 		return 0, nil, errors.BaseErrorWrapper(err)
 	}
@@ -468,7 +468,7 @@ func CreateRequest(ctx context.Context, httpMethod string, baseUrl string, reque
 	if requestParams != nil {
 		u.RawQuery = requestParams.Encode()
 	}
-	req, err := http.NewRequest(httpMethod, u.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, httpMethod, u.String(), nil)
 	if err != nil {
 		return nil, errors.NewBaseError(errors.KindServerError, "failed to create a http request", err)
 	}
@@ -483,7 +483,11 @@ func makeRequest(req *http.Request, authInjector interfaces.AuthenticationInject
 		if err := authInjector.AddAuthenticationData(req); err != nil {
 			return nil, errors.NewBaseError(errors.KindServerError, "failed to inject authentication data", err)
 		}
-		client.Transport = authInjector.RoundTripper()
+		// SecureTransportProvider is optional: only injectors that need to control the transport
+		// (e.g. mTLS or per-request authorization) implement it. Others fall back to the default transport.
+		if stp, ok := authInjector.(interfaces.SecureTransportProvider); ok {
+			client.Transport = stp.RoundTripper()
+		}
 	}
 
 	resp, err := client.Do(req)

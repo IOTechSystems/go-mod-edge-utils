@@ -33,6 +33,18 @@ type Route struct {
 	Method string
 }
 
+// validMethods is the set of methods a Route may declare. It is the single
+// source of truth for what Register accepts and must stay in step with the
+// oneof list proxy-auth's AuthRoute DTO validation enforces on the wire (see
+// pkg/mcp/middleware/visibility.go): a method Register lets through but the DTO
+// rejects would fail every tools/list at runtime, which is the very drift this
+// validation exists to catch at startup.
+var validMethods = []string{
+	"GET", "HEAD", "POST", "PUT", "DELETE",
+	"CONNECT", "OPTIONS", "TRACE", "PATCH",
+	"QUERY", "MUTATION", "SUBSCRIPTION",
+}
+
 // ServiceRoute builds a Route for one upstream service, so a tool names the API
 // route it reaches without repeating the service prefix. serviceKey is the bare
 // service key (e.g. "core-metadata"); each MCP service defines its own thin
@@ -147,6 +159,20 @@ func (r *Registry[C]) Register(t Tool[C]) {
 		panic(fmt.Sprintf("tool: %q declares no visibility routes and is not marked local", t.Name))
 	}
 
+	// A declared route is only useful if proxy-auth will accept it. Checking the
+	// contents here, not just that the slice is non-empty, keeps a malformed
+	// route (empty URI, mistyped method) the same fail-fast startup bug as a
+	// missing one — rather than a route that passes registration and then fails
+	// every tools/list when proxy-auth's DTO validation rejects it at runtime.
+	for _, route := range t.VisibilityRoutes {
+		if route.URI == "" {
+			panic(fmt.Sprintf("tool: %q declares a route with an empty URI", t.Name))
+		}
+		if !slices.Contains(validMethods, route.Method) {
+			panic(fmt.Sprintf("tool: %q declares route %q with unsupported method %q", t.Name, route.URI, route.Method))
+		}
+	}
+
 	// ServiceKey says which upstream service must be up before this tool loads. A
 	// mapped tool without one skips that check and loads even when its service is
 	// down; a local tool with one waits on a service it never uses.
@@ -164,6 +190,7 @@ func (r *Registry[C]) Register(t Tool[C]) {
 			t.Name, t.Behaviour))
 	}
 
+	t.VisibilityRoutes = slices.Clone(t.VisibilityRoutes)
 	r.tools[t.Name] = t
 }
 
@@ -219,7 +246,9 @@ func (r *Registry[C]) All() []Tool[C] {
 
 	out := make([]Tool[C], 0, len(names))
 	for _, name := range names {
-		out = append(out, r.tools[name])
+		t := r.tools[name]
+		t.VisibilityRoutes = slices.Clone(t.VisibilityRoutes)
+		out = append(out, t)
 	}
 	return out
 }

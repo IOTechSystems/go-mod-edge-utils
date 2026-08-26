@@ -7,8 +7,8 @@ package middleware
 
 import (
 	"context"
-
 	"slices"
+	"time"
 
 	restinterfaces "github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/rest/interfaces"
 	"github.com/google/uuid"
@@ -39,8 +39,16 @@ const proxyAuthApiVersion = "v3"
 // defaults it to "public", which is wrong for a tools/list filtered per caller.
 const cacheScopePrivate = "private"
 
+// authRoutesTimeout bounds the proxy-auth batch-authz round-trip. MCP server
+// requests carry no deadline and the shared rest client has no timeout, so
+// without this a proxy-auth connection that stalls before returning headers
+// would block the tools/list goroutine indefinitely.
+const authRoutesTimeout = 30 * time.Second
+
 type AuthRoute struct {
-	Path   string `json:"path" validate:"required,dto-none-empty-string"`
+	Path string `json:"path" validate:"required,dto-none-empty-string"`
+	// The Method oneof constraint must stay in sync with tool.validMethods, which
+	// Register enforces at startup (see pkg/mcp/tool/registry.go).
 	Method string `json:"method" validate:"required,oneof=GET HEAD POST PUT DELETE CONNECT OPTIONS TRACE PATCH QUERY MUTATION SUBSCRIPTION"`
 }
 
@@ -96,6 +104,9 @@ func (c oauthRoutesClient) AuthRoutes(ctx context.Context, headers map[string]st
 		}
 		reqs = append(reqs, req)
 	}
+	ctx, cancel := context.WithTimeout(ctx, authRoutesTimeout)
+	defer cancel()
+
 	var res authRouteResponse
 	if err := rest.PostRequestWithRawDataAndHeaders(ctx, &res, c.baseURL, OAuthAuthRoutesPath, nil, reqs, c.injector, headers); err != nil {
 		return nil, err

@@ -60,6 +60,37 @@ func TestRegister_AcceptsExplicitLocal(t *testing.T) {
 	assert.Nil(t, got, "a tool explicitly marked local must register")
 }
 
+// An empty URI passes the len check but proxy-auth's DTO validation rejects it,
+// so a route universe carrying one would fail every tools/list at runtime.
+// Register turns that into a startup bug instead.
+func TestRegister_PanicsOnRouteWithEmptyURI(t *testing.T) {
+	got := registerPanic(t, Tool[testContainer]{
+		Name:             "zz_empty_uri",
+		Behaviour:        ReadOnly,
+		ServiceKey:       "core-metadata",
+		VisibilityRoutes: []Route{{URI: "", Method: http.MethodGet}},
+		Add:              noopAdd,
+	})
+
+	require.NotNil(t, got, "a route with an empty URI must not register")
+	assert.Contains(t, got, "declares a route with an empty URI")
+}
+
+// A mistyped or unsupported method is outside proxy-auth's accepted set, so it
+// too would fail every tools/list at runtime rather than being caught here.
+func TestRegister_PanicsOnRouteWithUnsupportedMethod(t *testing.T) {
+	got := registerPanic(t, Tool[testContainer]{
+		Name:             "zz_bad_method",
+		Behaviour:        ReadOnly,
+		ServiceKey:       "core-metadata",
+		VisibilityRoutes: []Route{{URI: "/core-metadata/api/v3/device/all", Method: "Get"}},
+		Add:              noopAdd,
+	})
+
+	require.NotNil(t, got, "a route with an unsupported method must not register")
+	assert.Contains(t, got, "unsupported method")
+}
+
 // Local and a route universe together mean one of the two is wrong, and which is
 // not guessable — a local tool with routes would be authorized against routes it
 // never calls.

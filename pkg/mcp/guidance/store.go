@@ -109,7 +109,7 @@ func New(fsys fs.FS, opts Options) (*Store, error) {
 		if !idRe.MatchString(id) {
 			return nil, fmt.Errorf("%s: id %q is not URI-safe; the id is the "+
 				"filename and goes verbatim into the resource URI, so it must be a "+
-				"lowercase slug matching %s", path, id, idRe)
+				"slug matching %s", path, id, idRe)
 		}
 		name, rest, err := splitH1(body)
 		if err != nil {

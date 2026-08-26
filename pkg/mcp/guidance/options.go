@@ -6,6 +6,7 @@
 package guidance
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 )
@@ -67,6 +68,12 @@ func (o Options) withDefaults() Options {
 // so a spelling the resolver cannot read fails the build instead of going
 // unnoticed.
 func (o *Options) compile() error {
+	if o.Scheme == "" {
+		return errors.New("guidance: Scheme must be set")
+	}
+	if o.MIMEType == "" {
+		return errors.New("guidance: MIMEType must be set")
+	}
 	if o.PointerTool == "" {
 		return nil
 	}

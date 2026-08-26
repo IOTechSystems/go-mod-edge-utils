@@ -29,19 +29,24 @@ func ValidateConfig(oauth mcpConfig.OAuthInfo) error {
 	if err := requireAbsoluteURL("OAuth.Resource", oauth.Resource); err != nil {
 		return err
 	}
+	resourceURL, _ := neturl.Parse(oauth.Resource)
+	if resourceURL.EscapedPath() != mcpCommon.MCPPath {
+		return fmt.Errorf("OAuth.Resource path must be %q, got %q", mcpCommon.MCPPath, resourceURL.EscapedPath())
+	}
 	return requireAbsoluteURL("OAuth.AuthorizationServer", oauth.AuthorizationServer)
 }
 
-// requireAbsoluteURL fails when raw is not an absolute URL (scheme + host, no
-// fragment, no query). A query is rejected because metadataLocation derives the
-// metadata path from the path alone and would silently drop it (RFC 8707 §2).
+// requireAbsoluteURL fails when raw is not an absolute HTTP(S) URL (scheme +
+// host, no fragment, no query). A query is rejected because metadataLocation
+// derives the metadata path from the path alone and would silently drop it
+// (RFC 8707 §2).
 func requireAbsoluteURL(name, raw string) error {
 	if raw == "" {
 		return fmt.Errorf("%s must be set (add the OAuth config section)", name)
 	}
 	u, err := neturl.Parse(raw)
-	if err != nil || u.Scheme == "" || u.Host == "" || u.Fragment != "" || u.RawQuery != "" {
-		return fmt.Errorf("%s must be an absolute URL with scheme and host and no fragment or query, got %q", name, raw)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.Fragment != "" || u.RawQuery != "" {
+		return fmt.Errorf("%s must be an absolute HTTP(S) URL with host and no fragment or query, got %q", name, raw)
 	}
 	return nil
 }

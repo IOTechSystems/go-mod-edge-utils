@@ -43,10 +43,3 @@ func (p *jwtSecretProvider) AddAuthenticationData(req *http.Request) error {
 
 	return nil
 }
-
-// RoundTripper returns nil so that net/http falls back to http.DefaultTransport.
-// This provider only decorates the request with a JWT; it does not supply a
-// custom (e.g. mTLS) transport.
-func (p *jwtSecretProvider) RoundTripper() http.RoundTripper {
-	return nil
-}

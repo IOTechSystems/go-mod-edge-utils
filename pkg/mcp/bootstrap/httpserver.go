@@ -7,6 +7,7 @@ package bootstrap
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"strconv"
 	"sync"
@@ -148,7 +149,7 @@ func (b *HttpServer) BootstrapHandler(
 func serverAddress(bindAddr, host string, port int) string {
 	p := strconv.Itoa(port)
 	if bindAddr != "" {
-		return bindAddr + ":" + p
+		return net.JoinHostPort(bindAddr, p)
 	}
-	return host + ":" + p
+	return net.JoinHostPort(host, p)
 }

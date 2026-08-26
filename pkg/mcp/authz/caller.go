@@ -67,8 +67,8 @@ func (i *Injector) AddAuthenticationData(req *http.Request) error {
 // unauthorized.
 func (i *Injector) RoundTripper() http.RoundTripper {
 	next := http.DefaultTransport
-	if i.Delegate != nil {
-		if rt := i.Delegate.RoundTripper(); rt != nil {
+	if stp, ok := i.Delegate.(restinterfaces.SecureTransportProvider); ok {
+		if rt := stp.RoundTripper(); rt != nil {
 			next = rt
 		}
 	}
@@ -81,4 +81,7 @@ func (i *Injector) RoundTripper() http.RoundTripper {
 	}
 }
 
-var _ restinterfaces.AuthenticationInjector = (*Injector)(nil)
+var (
+	_ restinterfaces.AuthenticationInjector  = (*Injector)(nil)
+	_ restinterfaces.SecureTransportProvider = (*Injector)(nil)
+)
