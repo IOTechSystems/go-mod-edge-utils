@@ -77,6 +77,9 @@ func Register(router *echo.Echo, mcpHandler http.Handler, oauth mcpConfig.OAuthI
 	if err := ValidateConfig(oauth); err != nil {
 		return err
 	}
+	if mcpHandler == nil {
+		return fmt.Errorf("rs.Register: MCP handler must be non-nil")
+	}
 
 	if validator == nil {
 		return fmt.Errorf("rs.Register: validator must be non-nil")

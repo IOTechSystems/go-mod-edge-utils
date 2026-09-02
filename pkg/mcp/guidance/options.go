@@ -11,6 +11,8 @@ import (
 	"regexp"
 )
 
+var schemeRe = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9+.-]*://$`)
+
 // Options carries the domain rules the engine enforces but does not itself
 // define. A consumer supplies its own docs (via the fs.FS passed to New) and
 // its own rules here, so the same engine serves different catalogs.
@@ -70,6 +72,9 @@ func (o Options) withDefaults() Options {
 func (o *Options) compile() error {
 	if o.Scheme == "" {
 		return errors.New("guidance: Scheme must be set")
+	}
+	if !schemeRe.MatchString(o.Scheme) {
+		return fmt.Errorf("invalid scheme: %s", o.Scheme)
 	}
 	if o.MIMEType == "" {
 		return errors.New("guidance: MIMEType must be set")

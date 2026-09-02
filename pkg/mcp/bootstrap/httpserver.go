@@ -7,8 +7,10 @@ package bootstrap
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -132,13 +134,18 @@ func (b *HttpServer) BootstrapHandler(
 		}()
 		b.isRunning.Store(true)
 
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Errorf("Web server failed: %v", err)
 			cancel := container.CancelFuncFrom(dic.Get)
 			cancel()
-		} else {
-			logger.Info("Web server stopped")
+
+			// Wait for all long-running go functions to stop before exiting.
+			wg.Done() // Must do this to account for this go func's wg.Add above otherwise wait will block indefinitely
+			wg.Wait()
+			os.Exit(1)
 		}
+
+		logger.Info("Web server stopped")
 	}()
 
 	return true

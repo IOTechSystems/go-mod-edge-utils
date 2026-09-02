@@ -223,6 +223,22 @@ func (r *Registry[C]) Routes() map[string][]Route {
 // so has no upstream route to authorize.
 func (r *Registry[C]) IsLocal(name string) bool { return r.tools[name].Local }
 
+// ServiceKeys returns every distinct upstream service key some tool needs,
+// ordered by name; local tools contribute nothing. Read from the declarations
+// rather than derived anywhere else: a second derivation would drift, and the
+// drift would show as a service nobody warmed.
+func (r *Registry[C]) ServiceKeys() []string {
+	out := make([]string, 0, len(r.tools))
+	for _, t := range r.tools {
+		if t.ServiceKey == "" || slices.Contains(out, t.ServiceKey) {
+			continue
+		}
+		out = append(out, t.ServiceKey)
+	}
+	sort.Strings(out)
+	return out
+}
+
 // MappedTools returns every tool name that reaches an upstream route — the
 // authoritative set for RBAC and for server-instruction guards.
 func (r *Registry[C]) MappedTools() map[string]bool {

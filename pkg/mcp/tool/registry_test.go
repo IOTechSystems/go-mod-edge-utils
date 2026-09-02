@@ -303,6 +303,32 @@ func TestRegistry_AllIsOrderedByName(t *testing.T) {
 	assert.Equal(t, []string{"issue_get_command", "manage_device", "query_devices", "search_guidance"}, names)
 }
 
+// ServiceKeys is what a startup warm-up iterates: the distinct set of upstreams
+// some tool needs, ordered, with local tools contributing nothing. Deriving the
+// list a second time elsewhere would be a second thing to keep in step with the
+// tools actually registered.
+func TestServiceKeys_IsTheDistinctSetOfUpstreams(t *testing.T) {
+	r := newTestRegistry(t)
+
+	keys := r.ServiceKeys()
+
+	// core-metadata appears on two tools; core-command on one; search_guidance on
+	// none. Distinct and ordered.
+	assert.Equal(t, []string{"core-command", "core-metadata"}, keys)
+	assert.NotContains(t, keys, "", "a local tool contributes nothing")
+
+	want := map[string]bool{}
+	for _, tl := range r.All() {
+		if tl.ServiceKey != "" {
+			want[tl.ServiceKey] = true
+		}
+	}
+	assert.Len(t, keys, len(want))
+	for _, k := range keys {
+		assert.Truef(t, want[k], "%q is not declared by any tool", k)
+	}
+}
+
 func TestServiceRoute_PrefixesServiceKey(t *testing.T) {
 	got := ServiceRoute("core-metadata", "/api/v3/device/all", http.MethodGet)
 	assert.Equal(t, Route{URI: "/core-metadata/api/v3/device/all", Method: http.MethodGet}, got)

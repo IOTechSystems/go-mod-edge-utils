@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/mcp/callstate"
 )
 
 // Authorizer decides one (route, method) for one caller. route is the
@@ -86,47 +88,39 @@ func (e *OutageError) Error() string {
 func (e *OutageError) Unwrap() error { return e.Err }
 
 // Transport authorizes every request it carries before letting it out, and is
-// the only place an upstream call can be authorized from. It is built per
-// caller: the bearer is a field, because the request context does not reach
-// here — go-mod-core-contracts builds upstream requests with http.NewRequest,
-// not NewRequestWithContext, so req.Context() is always Background.
+// the only place an upstream call can be authorized from.
+//
+// It holds nothing about any caller: the bearer and the caller's context both
+// ride the request that RoundTrip is handed, read at the moment it is sent. That
+// is what lets one Transport — and so one upstream client — serve every caller.
+// ⚠ A caller-bound field would be set once for whoever built the object and then
+// used for every request through it, which no single-threaded test would show.
 type Transport struct {
 	// Next carries the request once it is allowed.
 	Next http.RoundTripper
 	// Authorizer is asked about every request.
 	Authorizer Authorizer
-	// Bearer is the end user's token, bound at construction.
-	Bearer string
 	// ServicePrefix is the "/core-metadata"-style prefix identifying the
 	// upstream service. It comes from the client's configuration, never from
 	// the request URL: the URL a client sends is service-relative
 	// ("/api/v3/device/all"), so the service identity lives only in the host,
 	// and proxy-auth's routes are prefixed by service.
 	ServicePrefix string
-	// Ctx is the caller's context, carried here for the same reason Bearer is:
-	// req.Context() is always Background (see above), so cancelling the MCP
-	// request would otherwise not reach the authorization call. Storing a context
-	// in a struct is normally wrong; here the library leaves no other channel,
-	// and the alternative is a call that cannot be cancelled at all. Nil is
-	// tolerated — authorizationContext falls back to a bare deadline.
-	Ctx context.Context
 }
 
-// authorizationTimeout bounds the proxy-auth call when nothing else does. The
-// http.Client go-mod-core-contracts builds has no Timeout, so without this a
-// proxy-auth that accepts the connection and never answers pins the calling
-// goroutine for the life of the process.
-const authorizationTimeout = 30 * time.Second
+// authorizationTimeout bounds the proxy-auth call. When an MCP service installs
+// middleware.Deadline it must stay STRICTLY under that ToolCallCeiling: a
+// sub-ceiling equal to its parent gets no timer at all, so proxy-auth could spend
+// the whole call's budget and the resulting error would then name the upstream.
+// Standing alone it is simply the bound that keeps a proxy-auth which accepts the
+// connection and never answers from pinning the calling goroutine.
+const authorizationTimeout = 5 * time.Second
 
-// authorizationContext derives the context the authorization call runs under:
-// the caller's, so a disconnect cancels it, plus a deadline, so an unanswered
-// proxy-auth cannot pin the goroutine even when the caller waits forever.
-func (t *Transport) authorizationContext() (context.Context, context.CancelFunc) {
-	parent := t.Ctx
-	if parent == nil {
-		parent = context.Background()
-	}
-	return context.WithTimeout(parent, authorizationTimeout)
+// authorizationContext derives the context the authorization call runs under: the
+// caller's own (req.Context()), so a disconnect cancels it, plus the sub-deadline
+// above.
+func authorizationContext(req *http.Request) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(req.Context(), authorizationTimeout)
 }
 
 // RoundTrip authorizes req and sends it only if allowed. On refusal or on an
@@ -141,10 +135,10 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	// sent") quietly untrue exactly where EnableNameFieldEscape is in use.
 	route := t.ServicePrefix + req.URL.EscapedPath()
 
-	ctx, cancel := t.authorizationContext()
+	ctx, cancel := authorizationContext(req)
 	defer cancel()
 
-	allowed, err := t.Authorizer.Allow(ctx, t.Bearer, route, req.Method)
+	allowed, err := t.Authorizer.Allow(ctx, CallerFrom(req.Context()), route, req.Method)
 	if err != nil {
 		// An authentication failure is already a typed answer; wrapping it as an
 		// outage would tell the caller to retry a token that will never work.
@@ -152,13 +146,18 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		if errors.As(err, &unauth) {
 			return nil, err
 		}
+		// The OWNER of the deadline, not its kind. Our own sub-ceiling expiring
+		// means proxy-auth did not answer while the caller still waited: an outage.
+		// A caller who stopped waiting is not, and the bare cause is enough to say
+		// so — the middleware maps only the three typed answers and passes anything
+		// else through untouched.
+		if callstate.Abandoned(req.Context()) {
+			return nil, context.Cause(req.Context())
+		}
 		return nil, &OutageError{Route: route, Method: req.Method, Err: err}
 	}
 	if !allowed {
 		return nil, &DeniedError{Route: route, Method: req.Method}
-	}
-	if t.Ctx != nil {
-		req = req.WithContext(t.Ctx)
 	}
 	return t.Next.RoundTrip(req)
 }

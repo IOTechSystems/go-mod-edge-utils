@@ -3,11 +3,15 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+// caller.go — the only channel by which the end user's bearer reaches the
+// transport that authorizes their upstream call. In the context because every
+// layer between is library code with no parameter for it, and read at RoundTrip
+// time, so the token always belongs to the request being sent.
+
 package authz
 
 import (
 	"context"
-
 	"net/http"
 
 	restinterfaces "github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/rest/interfaces"
@@ -16,72 +20,79 @@ import (
 // callerKey types the context value holding the end user's bearer token.
 type callerKey struct{}
 
-// WithCaller returns ctx carrying the end user's bearer token, so the upstream
-// client built further down the call can bind its authorization to this caller.
-// Set once per tools/call, from the inbound request's Authorization header.
+// WithCaller returns ctx carrying the end user's bearer token. Set once per
+// tools/call (middleware Auth), read on every upstream request it makes.
 func WithCaller(ctx context.Context, bearer string) context.Context {
 	return context.WithValue(ctx, callerKey{}, bearer)
 }
 
-// CallerFrom returns the bearer token WithCaller stored, or "" when the context
-// carries none. An empty bearer is not treated as an error here: it is passed to
-// proxy-auth, which refuses it. Failing closed at the authorizer keeps the
-// "every upstream call is authorized" property from depending on a check here.
+// CallerFrom returns the bearer WithCaller stored, or "". An empty one is passed
+// to proxy-auth, which refuses it: failing closed at the authorizer keeps "every
+// upstream call is authorized" from depending on a check here.
 func CallerFrom(ctx context.Context) string {
 	bearer, _ := ctx.Value(callerKey{}).(string)
 	return bearer
 }
 
-// Injector is the AuthenticationInjector an upstream client is built with. It
-// keeps the delegate's request decoration — the service's own JWT, which the
-// upstream service still requires — and replaces the transport with one that
-// authorizes the end user against every request before it is sent.
+// Injector is the AuthenticationInjector an upstream client is built with.
+// Through NewInjector, never as a literal: the transport is assembled once at
+// construction, so a field set afterwards would be ignored.
 //
-// One Injector serves one caller and one upstream service. Sharing an instance
-// between callers would let one caller's request be authorized with another's
-// token, which no single-threaded test would show.
+// Both halves are shared: one instance per upstream service, serving every
+// caller. That is safe for exactly one reason — nothing about the caller is
+// stored on either. Anything per-caller rides the request's context.
 type Injector struct {
-	// Delegate supplies the service-JWT decoration and the base transport
+	// delegate supplies the service-JWT decoration and the base transport
 	// (TLS/mTLS in secure mode).
-	Delegate restinterfaces.AuthenticationInjector
-	// Authorizer, Bearer, ServicePrefix and Ctx are handed to the Transport.
-	Authorizer    Authorizer
-	Bearer        string
-	ServicePrefix string
-	// Ctx is the caller's context. It travels with the bearer because the two
-	// answer the same question — which call is this? — and neither can reach the
-	// Transport any other way.
-	Ctx context.Context
+	delegate  restinterfaces.AuthenticationInjector
+	transport *Transport
+}
+
+// NewInjector builds one service's injector. A nil delegate is usable; a nil
+// authorizer is not — it panics on the first RoundTrip. The fail-closed answer is
+// an authorizer that refuses every route, which is what the production caller
+// supplies.
+func NewInjector(delegate restinterfaces.AuthenticationInjector, authorizer Authorizer, servicePrefix string) *Injector {
+	return &Injector{
+		delegate: delegate,
+		transport: &Transport{
+			Next:          transportOf(delegate),
+			Authorizer:    authorizer,
+			ServicePrefix: servicePrefix,
+		},
+	}
 }
 
 func (i *Injector) AddAuthenticationData(req *http.Request) error {
-	if i.Delegate == nil {
+	if i.delegate == nil {
 		return nil
 	}
-	return i.Delegate.AddAuthenticationData(req)
+	return i.delegate.AddAuthenticationData(req)
 }
 
-// RoundTripper returns the authorizing transport. It never returns nil: a
-// SecureProvider with no transport configured would panic a direct RoundTrip
-// caller, and returning the base transport unwrapped would send the request
-// unauthorized.
-func (i *Injector) RoundTripper() http.RoundTripper {
-	next := http.DefaultTransport
-	if stp, ok := i.Delegate.(restinterfaces.SecureTransportProvider); ok {
-		if rt := stp.RoundTripper(); rt != nil {
-			next = rt
-		}
-	}
-	return &Transport{
-		Next:          next,
-		Authorizer:    i.Authorizer,
-		Bearer:        i.Bearer,
-		ServicePrefix: i.ServicePrefix,
-		Ctx:           i.Ctx,
-	}
-}
+// RoundTripper returns the authorizing transport — never the base one unwrapped,
+// which would send the request unauthorized.
+func (i *Injector) RoundTripper() http.RoundTripper { return i.transport }
 
 var (
 	_ restinterfaces.AuthenticationInjector  = (*Injector)(nil)
 	_ restinterfaces.SecureTransportProvider = (*Injector)(nil)
 )
+
+// transportOf is the base transport a delegate supplies, or http.DefaultTransport
+// when it supplies none. The edge-utils injector split keeps RoundTripper on the
+// optional SecureTransportProvider, so a delegate that only decorates the request
+// contributes no transport and the default stands in.
+//
+// ⚠ Never nil: a SecureProvider with no transport configured would panic a direct
+// RoundTrip caller, and returning the base transport unwrapped would send the
+// request unauthorized. Resolved once here, at construction — RoundTripper() is on
+// the request path.
+func transportOf(delegate restinterfaces.AuthenticationInjector) http.RoundTripper {
+	if stp, ok := delegate.(restinterfaces.SecureTransportProvider); ok {
+		if rt := stp.RoundTripper(); rt != nil {
+			return rt
+		}
+	}
+	return http.DefaultTransport
+}

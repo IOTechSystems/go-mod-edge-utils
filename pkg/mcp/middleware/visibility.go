@@ -16,6 +16,7 @@ import (
 
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/errors"
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/mcp/callstate"
 	mcpCommon "github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/mcp/common"
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/mcp/tool"
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/models"
@@ -173,6 +174,17 @@ func Visibility(lc log.Logger, client RouteAuthorizer, toolRoutes func() map[str
 					mcpCommon.ForwardedResourceHeader: resource,
 				}, routes)
 				if authErr != nil {
+					// A client that hangs up says nothing about proxy-auth, and the
+					// branches below assert an outage at Errorf with NO CATALOGUE at
+					// all. ⚠ When an outer Deadline is installed this runs under the
+					// tool-call ceiling, so a stalled proxy-auth fails with ctx
+					// already expired — ctx.Err() != nil here would reclassify every
+					// stall as a hang-up. callstate.Abandoned reads the cause, which
+					// the ceiling stamps and a bare caller cancel does not.
+					if callstate.Abandoned(ctx) {
+						lc.Debugf("tools/list abandoned by the caller during authorization")
+						return nil, context.Cause(ctx)
+					}
 					if errors.Kind(authErr) == errors.KindUnauthorized {
 						// Debug, not Error: a stale token is a caller condition and
 						// happens routinely, so logging it louder would bury the

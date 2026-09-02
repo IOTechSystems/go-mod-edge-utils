@@ -13,11 +13,13 @@ import (
 	"net/url"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/errors"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/mcp/callstate"
 	mcpCommon "github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/mcp/common"
 )
 
@@ -58,25 +60,36 @@ func (s *stubAuthorizer) Allow(_ context.Context, bearer, route, method string) 
 	return s.allow, s.err
 }
 
-func newRequest(t *testing.T, method, rawURL string) *http.Request {
+// newRequest builds the request a Transport is handed. ⚠ Always pass a context:
+// without one a test exercises the empty-bearer path while looking like it tests
+// a caller.
+func newRequest(t *testing.T, ctx context.Context, method, rawURL string) *http.Request {
 	t.Helper()
-	req, err := http.NewRequest(method, rawURL, nil)
+	req, err := http.NewRequestWithContext(ctx, method, rawURL, nil)
 	require.NoError(t, err)
 	return req
+}
+
+// callerCtx is the context a request from one caller carries.
+func callerCtx(bearer string) context.Context {
+	return WithCaller(context.Background(), bearer)
 }
 
 func TestTransport_AllowedRequestIsSentOnce(t *testing.T) {
 	next := &recordingRoundTripper{}
 	authorizer := &stubAuthorizer{allow: true}
-	tr := &Transport{Next: next, Authorizer: authorizer, Bearer: "Bearer abc", ServicePrefix: "/core-metadata"}
+	tr := &Transport{Next: next, Authorizer: authorizer, ServicePrefix: "/core-metadata"}
 
-	res, err := tr.RoundTrip(newRequest(t, http.MethodGet, "http://core-metadata:59881/api/v3/device/all"))
+	res, err := tr.RoundTrip(newRequest(t, callerCtx("Bearer abc"), http.MethodGet,
+		"http://core-metadata:59881/api/v3/device/all"))
 
 	require.NoError(t, err)
 	require.NotNil(t, res)
 	assert.Equal(t, 1, next.count(), "an allowed request must be sent exactly once")
 	assert.Equal(t, []string{"GET /core-metadata/api/v3/device/all"}, authorizer.asked,
 		"the route asked about must be the request's own path, prefixed by the service")
+	assert.Equal(t, []string{"Bearer abc"}, authorizer.bearers,
+		"and the bearer must be the one on that request's context")
 }
 
 // The property the whole design rests on: on refusal nothing leaves. Asserting
@@ -85,9 +98,10 @@ func TestTransport_AllowedRequestIsSentOnce(t *testing.T) {
 // leaked the data.
 func TestTransport_DeniedRequestIsNeverSent(t *testing.T) {
 	next := &recordingRoundTripper{}
-	tr := &Transport{Next: next, Authorizer: &stubAuthorizer{allow: false}, Bearer: "Bearer abc", ServicePrefix: "/core-data"}
+	tr := &Transport{Next: next, Authorizer: &stubAuthorizer{allow: false}, ServicePrefix: "/core-data"}
 
-	res, err := tr.RoundTrip(newRequest(t, http.MethodDelete, "http://core-data:59880/api/v3/event/age/1000"))
+	res, err := tr.RoundTrip(newRequest(t, callerCtx("Bearer abc"), http.MethodDelete,
+		"http://core-data:59880/api/v3/event/age/1000"))
 
 	require.Error(t, err)
 	assert.Nil(t, res)
@@ -102,9 +116,10 @@ func TestTransport_DeniedRequestIsNeverSent(t *testing.T) {
 func TestTransport_OutageRequestIsNeverSent(t *testing.T) {
 	next := &recordingRoundTripper{}
 	boom := goErrors.New("connection refused")
-	tr := &Transport{Next: next, Authorizer: &stubAuthorizer{err: boom}, Bearer: "Bearer abc", ServicePrefix: "/core-metadata"}
+	tr := &Transport{Next: next, Authorizer: &stubAuthorizer{err: boom}, ServicePrefix: "/core-metadata"}
 
-	_, err := tr.RoundTrip(newRequest(t, http.MethodGet, "http://core-metadata:59881/api/v3/device/all"))
+	_, err := tr.RoundTrip(newRequest(t, callerCtx("Bearer abc"), http.MethodGet,
+		"http://core-metadata:59881/api/v3/device/all"))
 
 	require.Error(t, err)
 	assert.Zero(t, next.count(), "an unanswered authorization must not let the request out")
@@ -122,10 +137,10 @@ func TestTransport_DenialAndOutageDoNotCrossHit(t *testing.T) {
 	next := &recordingRoundTripper{}
 
 	deniedTr := &Transport{Next: next, Authorizer: &stubAuthorizer{allow: false}, ServicePrefix: "/core-metadata"}
-	_, deniedErr := deniedTr.RoundTrip(newRequest(t, http.MethodGet, "http://x/api/v3/device/all"))
+	_, deniedErr := deniedTr.RoundTrip(newRequest(t, callerCtx("Bearer abc"), http.MethodGet, "http://x/api/v3/device/all"))
 
 	outageTr := &Transport{Next: next, Authorizer: &stubAuthorizer{err: goErrors.New("timeout")}, ServicePrefix: "/core-metadata"}
-	_, outageErr := outageTr.RoundTrip(newRequest(t, http.MethodGet, "http://x/api/v3/device/all"))
+	_, outageErr := outageTr.RoundTrip(newRequest(t, callerCtx("Bearer abc"), http.MethodGet, "http://x/api/v3/device/all"))
 
 	var denied *DeniedError
 	var outage *OutageError
@@ -159,45 +174,44 @@ func TestSentinels_SurviveBaseErrorAndURLErrorWrapping(t *testing.T) {
 	}
 }
 
-// Per-caller isolation at the unit level: two injectors built for two callers
-// must authorize with their own bearers.
-func TestInjector_BindsOneCallerPerInstance(t *testing.T) {
+// ONE injector serves two callers, and each request is authorized with the bearer
+// its own context carries. Sequential: a shared mutable field needs a concurrent
+// twin, which a consuming service holds against its own client.
+func TestInjector_ReadsEachCallersBearerFromItsOwnRequest(t *testing.T) {
 	authorizer := &stubAuthorizer{allow: true}
 	next := &recordingRoundTripper{}
 
+	inj := NewInjector(nil, authorizer, "/core-metadata")
+	tr, ok := inj.RoundTripper().(*Transport)
+	require.True(t, ok, "the injector must hand back the authorizing transport, not the bare one")
+	tr.Next = next
+
 	for _, bearer := range []string{"Bearer alice", "Bearer bob"} {
-		inj := &Injector{
-			Delegate:      stubDelegate{},
-			Authorizer:    authorizer,
-			Bearer:        bearer,
-			ServicePrefix: "/core-metadata",
-		}
-		tr, ok := inj.RoundTripper().(*Transport)
-		require.True(t, ok, "the injector must hand back the authorizing transport, not the bare one")
-		tr.Next = next
-		_, err := tr.RoundTrip(newRequest(t, http.MethodGet, "http://x/api/v3/device/all"))
+		_, err := tr.RoundTrip(newRequest(t, callerCtx(bearer), http.MethodGet, "http://x/api/v3/device/all"))
 		require.NoError(t, err)
 	}
 
 	assert.Equal(t, []string{"Bearer alice", "Bearer bob"}, authorizer.bearers)
+	assert.Same(t, tr, inj.RoundTripper(),
+		"and the same transport every time: the library asks for one per request")
 }
 
 // The injector must keep decorating requests with the MCP service's own service
 // JWT: the upstream service still requires it, and the authorization wrapper is
 // additional, not a replacement.
 func TestInjector_KeepsDelegateAuthenticationData(t *testing.T) {
-	inj := &Injector{Delegate: stubDelegate{}, Authorizer: &stubAuthorizer{allow: true}}
+	inj := NewInjector(stubDelegate{}, &stubAuthorizer{allow: true}, "")
 
-	req := newRequest(t, http.MethodGet, "http://x/api/v3/device/all")
+	req := newRequest(t, callerCtx("Bearer abc"), http.MethodGet, "http://x/api/v3/device/all")
 	require.NoError(t, inj.AddAuthenticationData(req))
 
 	assert.Equal(t, "service-jwt", req.Header.Get(mcpCommon.AuthorizationHeader))
 }
 
 func TestInjector_NilDelegateStillAuthorizes(t *testing.T) {
-	inj := &Injector{Authorizer: &stubAuthorizer{allow: false}}
+	inj := NewInjector(nil, &stubAuthorizer{allow: false}, "")
 
-	req := newRequest(t, http.MethodGet, "http://x/api/v3/device/all")
+	req := newRequest(t, callerCtx("Bearer abc"), http.MethodGet, "http://x/api/v3/device/all")
 	require.NoError(t, inj.AddAuthenticationData(req), "a nil delegate must not panic")
 
 	_, err := inj.RoundTripper().RoundTrip(req)
@@ -208,7 +222,7 @@ func TestInjector_NilDelegateStillAuthorizes(t *testing.T) {
 
 // A nil delegate must still hand back a usable transport, never nil.
 func TestInjector_NilDelegateFallsBackToDefaultTransport(t *testing.T) {
-	inj := &Injector{Authorizer: &stubAuthorizer{allow: true}}
+	inj := NewInjector(nil, &stubAuthorizer{allow: true}, "")
 
 	tr, ok := inj.RoundTripper().(*Transport)
 	require.True(t, ok)
@@ -218,7 +232,7 @@ func TestInjector_NilDelegateFallsBackToDefaultTransport(t *testing.T) {
 // A delegate whose RoundTripper returns nil must fall back to the default
 // transport, never nil: a direct RoundTrip caller would panic otherwise.
 func TestInjector_NilDelegateTransportFallsBackToDefault(t *testing.T) {
-	inj := &Injector{Delegate: stubDelegate{}, Authorizer: &stubAuthorizer{allow: true}}
+	inj := NewInjector(stubDelegate{}, &stubAuthorizer{allow: true}, "")
 
 	tr, ok := inj.RoundTripper().(*Transport)
 	require.True(t, ok)
@@ -229,10 +243,7 @@ func TestInjector_NilDelegateTransportFallsBackToDefault(t *testing.T) {
 // request is finally sent with (TLS/mTLS in secure mode).
 func TestInjector_PreservesDelegateTransport(t *testing.T) {
 	sentinel := &http.Transport{}
-	inj := &Injector{
-		Delegate:   transportDelegate{transport: sentinel},
-		Authorizer: &stubAuthorizer{allow: true},
-	}
+	inj := NewInjector(transportDelegate{transport: sentinel}, &stubAuthorizer{allow: true}, "")
 
 	tr, ok := inj.RoundTripper().(*Transport)
 	require.True(t, ok)
@@ -344,10 +355,10 @@ func TestTransport_UnauthenticatedIsNotAnOutage(t *testing.T) {
 	authorizer := &stubAuthorizer{err: &UnauthenticatedError{
 		Route: "/core-metadata/api/v3/device/all", Method: http.MethodGet,
 	}}
-	tr := &Transport{Next: next, Authorizer: authorizer, Bearer: "Bearer abc",
-		ServicePrefix: "/core-metadata"}
+	tr := &Transport{Next: next, Authorizer: authorizer, ServicePrefix: "/core-metadata"}
 
-	_, err := tr.RoundTrip(newRequest(t, http.MethodGet, "http://core-metadata/api/v3/device/all"))
+	_, err := tr.RoundTrip(newRequest(t, callerCtx("Bearer abc"), http.MethodGet,
+		"http://core-metadata/api/v3/device/all"))
 
 	require.Error(t, err)
 	var unauth *UnauthenticatedError
@@ -357,17 +368,14 @@ func TestTransport_UnauthenticatedIsNotAnOutage(t *testing.T) {
 	assert.Zero(t, next.count(), "nothing may be sent when the caller is not authenticated")
 }
 
-// The authorization call must be cancellable. req.Context() is always Background
-// here (see the Transport doc) and the http.Client underneath has no Timeout, so
-// a proxy-auth that accepts the connection and never answers would pin every
-// in-flight tools/call goroutine. The caller's context is available because the
-// Injector is built per call, from it.
+// The authorization call must be cancellable — the http.Client underneath has no
+// Timeout, so an unanswering proxy-auth would pin every in-flight goroutine. The
+// caller's context reaches here on the request, so cancelling it cancels the call.
 func TestTransport_AuthorizationUsesTheCallerContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	// Checked INSIDE the authorizer, while the call is still in flight. Asserting
 	// on the context after RoundTrip returns proves nothing: RoundTrip defers its
-	// own cancel, so the context is closed by then whatever the caller did. That
-	// version of this test passed even with t.Ctx ignored entirely.
+	// own cancel, so the context is closed by then whatever the caller did.
 	propagated := false
 	authorizer := authorizerFunc(func(c context.Context, _, _, _ string) (bool, error) {
 		cancel()
@@ -379,9 +387,10 @@ func TestTransport_AuthorizationUsesTheCallerContext(t *testing.T) {
 		return true, nil
 	})
 	tr := &Transport{Next: &recordingRoundTripper{}, Authorizer: authorizer,
-		Bearer: "Bearer abc", ServicePrefix: "/core-metadata", Ctx: ctx}
+		ServicePrefix: "/core-metadata"}
 
-	_, err := tr.RoundTrip(newRequest(t, http.MethodGet, "http://core-metadata/api/v3/device/all"))
+	_, err := tr.RoundTrip(newRequest(t, WithCaller(ctx, "Bearer abc"), http.MethodGet,
+		"http://core-metadata/api/v3/device/all"))
 	require.NoError(t, err)
 
 	assert.True(t, propagated,
@@ -390,6 +399,10 @@ func TestTransport_AuthorizationUsesTheCallerContext(t *testing.T) {
 
 // Belt and braces for the case the caller never gives up either: an unanswered
 // proxy-auth must not pin the goroutine indefinitely.
+//
+// Asserted on the deadline's VALUE, not merely its presence. The request's own
+// context carries a far looser one, so "has a deadline" would pass on an
+// implementation that added none of its own and simply inherited the caller's.
 func TestTransport_AuthorizationHasADeadline(t *testing.T) {
 	seen := make(chan context.Context, 1)
 	authorizer := authorizerFunc(func(c context.Context, _, _, _ string) (bool, error) {
@@ -397,13 +410,19 @@ func TestTransport_AuthorizationHasADeadline(t *testing.T) {
 		return true, nil
 	})
 	tr := &Transport{Next: &recordingRoundTripper{}, Authorizer: authorizer,
-		Bearer: "Bearer abc", ServicePrefix: "/core-metadata"}
+		ServicePrefix: "/core-metadata"}
 
-	_, err := tr.RoundTrip(newRequest(t, http.MethodGet, "http://core-metadata/api/v3/device/all"))
+	callerCeiling := 10 * authorizationTimeout
+	ctx, cancel := context.WithTimeout(callerCtx("Bearer abc"), callerCeiling)
+	defer cancel()
+
+	_, err := tr.RoundTrip(newRequest(t, ctx, http.MethodGet, "http://core-metadata/api/v3/device/all"))
 	require.NoError(t, err)
 
-	_, ok := (<-seen).Deadline()
-	assert.True(t, ok, "the authorization call must be bounded even with no caller context")
+	deadline, ok := (<-seen).Deadline()
+	require.True(t, ok, "the authorization call must be bounded")
+	assert.InDelta(t, authorizationTimeout.Seconds(), time.Until(deadline).Seconds(), 1,
+		"the bound must be authorizationTimeout, not whatever the caller happened to allow")
 }
 
 // authorizerFunc adapts a function to Authorizer so a test can inspect the
@@ -443,10 +462,9 @@ func TestTransport_AuthorizesTheEscapedPathThatIsActuallySent(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			next := &recordingRoundTripper{}
 			authorizer := &stubAuthorizer{allow: true}
-			tr := &Transport{Next: next, Authorizer: authorizer, Bearer: "Bearer abc",
-				ServicePrefix: "/core-metadata"}
+			tr := &Transport{Next: next, Authorizer: authorizer, ServicePrefix: "/core-metadata"}
 
-			_, err := tr.RoundTrip(newRequest(t, http.MethodGet, tc.rawURL))
+			_, err := tr.RoundTrip(newRequest(t, callerCtx("Bearer abc"), http.MethodGet, tc.rawURL))
 			require.NoError(t, err)
 
 			require.Len(t, authorizer.asked, 1)
@@ -454,4 +472,100 @@ func TestTransport_AuthorizesTheEscapedPathThatIsActuallySent(t *testing.T) {
 				"proxy-auth must be asked about the path the upstream actually receives")
 		})
 	}
+}
+
+// What ended the authorization decides how it is reported: our own sub-ceiling
+// firing is an outage (proxy-auth did not answer while the caller waited); a
+// caller who cancelled or whose own deadline fired is not, and gets the bare cause
+// so the middleware passes it through untouched.
+func TestTransport_ReportsWhatActuallyEndedTheAuthorization(t *testing.T) {
+	stalling := authorizerFunc(func(c context.Context, _, _, _ string) (bool, error) {
+		<-c.Done()
+		return false, c.Err()
+	})
+	const grace = 50 * time.Millisecond
+
+	for name, tc := range map[string]struct {
+		parent     func() (context.Context, context.CancelFunc)
+		wantOutage bool
+	}{
+		"our ceiling expired": {
+			parent: func() (context.Context, context.CancelFunc) {
+				return context.WithTimeoutCause(callerCtx("Bearer abc"), grace,
+					callstate.ErrCeilingExpired)
+			},
+			wantOutage: true,
+		},
+		"the caller's own deadline expired": {
+			parent: func() (context.Context, context.CancelFunc) {
+				return context.WithTimeout(callerCtx("Bearer abc"), grace)
+			},
+		},
+		"the caller cancelled": {
+			parent: func() (context.Context, context.CancelFunc) {
+				ctx, cancel := context.WithCancel(callerCtx("Bearer abc"))
+				cancel()
+				return ctx, func() {}
+			},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			ctx, cancel := tc.parent()
+			defer cancel()
+			tr := &Transport{Next: &recordingRoundTripper{}, Authorizer: stalling,
+				ServicePrefix: "/core-metadata"}
+
+			_, err := tr.RoundTrip(newRequest(t, ctx, http.MethodGet,
+				"http://core-metadata/api/v3/device/all"))
+
+			require.Error(t, err)
+			var outage *OutageError
+			if tc.wantOutage {
+				assert.True(t, goErrors.As(err, &outage))
+				return
+			}
+			assert.False(t, goErrors.As(err, &outage),
+				"a caller who stopped waiting is not proxy-auth being down")
+			assert.ErrorIs(t, err, context.Cause(ctx),
+				"and the bare cause is what comes back, so the middleware passes it through")
+		})
+	}
+}
+
+// The sub-ceiling has to be strictly tighter than any outer tool-call ceiling, or
+// it is not a sub-ceiling: a value equal to the parent can never fire first,
+// because the parent kills the whole context at the same instant.
+//
+// Asserted as a relationship, not as a number, so retuning either constant cannot
+// quietly restore the equality. ⚠ middleware imports authz, so the parent's value
+// cannot be imported back; it is repeated here and the repetition is the point —
+// this is what fails if the two are ever made equal again.
+func TestTransport_TheAuthorizationBoundIsTighterThanTheCallCeiling(t *testing.T) {
+	const toolCallCeiling = 30 * time.Second // middleware.ToolCallCeiling
+
+	require.Less(t, authorizationTimeout, toolCallCeiling,
+		"a sub-ceiling equal to its parent never fires first, so it bounds nothing")
+
+	// And it must actually be the one that fires. A caller with the parent's whole
+	// budget must still see the authorization call cut at the smaller value.
+	seen := make(chan context.Context, 1)
+	tr := &Transport{
+		Next: &recordingRoundTripper{},
+		Authorizer: authorizerFunc(func(c context.Context, _, _, _ string) (bool, error) {
+			seen <- c
+			return true, nil
+		}),
+		ServicePrefix: "/core-metadata",
+	}
+	ctx, cancel := context.WithTimeout(callerCtx("Bearer abc"), toolCallCeiling)
+	defer cancel()
+
+	_, err := tr.RoundTrip(newRequest(t, ctx, http.MethodGet, "http://core-metadata/api/v3/device/all"))
+	require.NoError(t, err)
+
+	deadline, ok := (<-seen).Deadline()
+	require.True(t, ok)
+	assert.Less(t, time.Until(deadline), toolCallCeiling-time.Second,
+		"with the caller holding the full ceiling, the authorization call must still "+
+			"be cut earlier — otherwise proxy-auth can spend the upstream's budget")
 }

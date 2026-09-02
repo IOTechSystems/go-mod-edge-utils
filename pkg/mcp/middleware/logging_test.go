@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -23,6 +24,7 @@ import (
 // don't exercise.
 type recordingLogger struct {
 	log.Logger
+	mu  sync.Mutex
 	out strings.Builder
 }
 
@@ -32,8 +34,21 @@ func (r *recordingLogger) Debugf(msg string, args ...any) { r.write("DEBUG", msg
 func (r *recordingLogger) Warnf(_ string, _ ...any)       {}
 func (r *recordingLogger) Tracef(_ string, _ ...any)      {}
 func (r *recordingLogger) LogLevel() string               { return log.DebugLog }
+
+// write is mutex-guarded because DecodeArguments' schema cache is shared across
+// request goroutines, so a concurrency test on it writes here from several at
+// once. strings.Builder is not safe for that and the race detector flags it.
 func (r *recordingLogger) write(level, msg string, args []any) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	r.out.WriteString(level + " " + fmt.Sprintf(msg, args...) + "\n")
+}
+
+// logged returns the captured lines under the same lock write holds.
+func (r *recordingLogger) logged() string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.out.String()
 }
 
 func TestLogging_PassesThrough(t *testing.T) {
