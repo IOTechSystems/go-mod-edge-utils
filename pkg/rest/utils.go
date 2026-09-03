@@ -504,7 +504,7 @@ func makeRequest(req *http.Request, authInjector interfaces.AuthenticationInject
 func getBody(resp *http.Response) ([]byte, errors.Error) {
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return body, errors.NewBaseError(errors.KindIOError, "failed to read the response body", err)
+		return body, errors.NewBaseError(errors.KindCommunicationError, "failed to read the response body", err)
 	}
 	return body, nil
 }
