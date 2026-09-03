@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"net/http"
 	neturl "net/url"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 
@@ -30,8 +31,9 @@ func ValidateConfig(oauth mcpConfig.OAuthInfo) error {
 		return err
 	}
 	resourceURL, _ := neturl.Parse(oauth.Resource)
-	if resourceURL.EscapedPath() != mcpCommon.MCPPath {
-		return fmt.Errorf("OAuth.Resource path must be %q, got %q", mcpCommon.MCPPath, resourceURL.EscapedPath())
+	resourcePath := resourceURL.EscapedPath()
+	if !strings.HasSuffix(resourcePath, mcpCommon.MCPPath) {
+		return fmt.Errorf("OAuth.Resource path must end in %q, got %q", mcpCommon.MCPPath, resourcePath)
 	}
 	return requireAbsoluteURL("OAuth.AuthorizationServer", oauth.AuthorizationServer)
 }

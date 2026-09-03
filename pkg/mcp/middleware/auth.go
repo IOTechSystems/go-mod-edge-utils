@@ -26,9 +26,9 @@ import (
 // than at a prediction of it. This middleware exists so the caller's identity
 // reaches that transport, and so a refusal reads to the model as a refusal.
 //
-// Local tools call no upstream, so nothing authorizes them; the bearer is
-// attached anyway, and endpoint-level bearerAuthn has already required a valid
-// token.
+// Local tools have no route-authorized upstream call. Endpoint-level bearerAuthn
+// has already required a valid token, but any upstream access must perform the
+// additional validation documented for Local tools.
 func Auth(lc log.Logger) sdkmcp.Middleware {
 	return func(next sdkmcp.MethodHandler) sdkmcp.MethodHandler {
 		return func(ctx context.Context, method string, req sdkmcp.Request) (sdkmcp.Result, error) {

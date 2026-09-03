@@ -91,6 +91,16 @@ func RequestLimitMiddleware(sizeLimit int64, logger log.Logger) echo.MiddlewareF
 			err := next(c)
 			// The downstream handler surfaces the limit as a *http.MaxBytesError when it
 			// reads the body; convert it to the same 413 response as the fast path.
+			//
+			// NOTE: this only covers echo-native handlers that propagate the read error
+			// up as their return value. Handlers mounted via echo.WrapHandler (e.g. the
+			// MCP Streamable HTTP handler) run the wrapped http.Handler and the adapter
+			// returns nil unconditionally, so a read error consumed inside ServeHTTP
+			// never reaches this branch. Byte-limit enforcement still holds regardless:
+			// the Content-Length fast path above rejects honest oversized bodies, and
+			// MaxBytesReader caps what the wrapped handler can read. The MCP SDK detects
+			// the *http.MaxBytesError itself and returns its own 413 (plain-text body),
+			// so only the response body shape differs from this middleware's JSON 413.
 			var maxBytesErr *http.MaxBytesError
 			if errors.As(err, &maxBytesErr) {
 				return writeRequestTooLarge(w, sizeLimit, logger)

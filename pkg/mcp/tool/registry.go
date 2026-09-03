@@ -108,8 +108,9 @@ type Tool[C any] struct {
 	// declaration hides the tool — whereas deriving "no routes means local" would
 	// turn the same mistake into a tool visible to everyone.
 	VisibilityRoutes []Route
-	// Local marks a tool served entirely inside the MCP service, with no
-	// upstream route to authorize. Explicit, for the reason above.
+	// Local marks a tool with no upstream route for route-authz to authorize —
+	// see the reason above. Such a tool may still call an upstream, in which case
+	// it must validate caller-controlled path values itself (see middleware README).
 	Local bool
 	// Behaviour is the tool's MCP behaviour hint.
 	//
