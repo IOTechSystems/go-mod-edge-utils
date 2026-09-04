@@ -29,13 +29,13 @@ func (h DirectoryHandler) Create(path string) error {
 
 	err := os.RemoveAll(path) // Remove pkiCaDir
 	if err != nil {
-		return fmt.Errorf("Attempted removal of existing CA PKI config directory: %s (%s)", path, err)
+		return fmt.Errorf("attempted removal of existing CA PKI config directory: %s (%s)", path, err)
 	}
 
 	h.loggingClient.Debug(fmt.Sprintf("Creating CA PKI setup directory: %s", path))
 	err = os.MkdirAll(path, 0750) // Create pkiCaDir
 	if err != nil {
-		return fmt.Errorf("Failed to create the CA PKI configuration directory: %s (%s)", path, err)
+		return fmt.Errorf("failed to create the CA PKI configuration directory: %s (%s)", path, err)
 	}
 	return nil
 }
@@ -54,7 +54,7 @@ func (h DirectoryHandler) Verify(path string) error {
 	if stat.IsDir() {
 		h.loggingClient.Debug(fmt.Sprintf("Existing CA PKI setup directory: %s", path))
 	} else {
-		return fmt.Errorf("Existing CA PKI setup directory is not a directory: %s", path)
+		return fmt.Errorf("existing CA PKI setup directory is not a directory: %s", path)
 	}
 	return nil
 }

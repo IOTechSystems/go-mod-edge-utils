@@ -10,14 +10,14 @@ import (
 )
 
 var (
-	L0Error        = NewBaseError(KindUnknown, "", nil)
-	L1Error        = fmt.Errorf("nothing")
-	L1ErrorWrapper = ToBaseError(L1Error)
-	L2ErrorWrapper = ToBaseError(L1ErrorWrapper)
-	L2Error        = NewBaseError(KindDatabaseError, "database failed", L1Error)
-	L3Error        = ToBaseError(L2Error)
-	L4Error        = NewBaseError(KindUnknown, "don't know", L3Error)
-	L5Error        = NewBaseError(KindCommunicationError, "network disconnected", L4Error)
+	ErrL0        = NewBaseError(KindUnknown, "", nil)
+	ErrL1        = fmt.Errorf("nothing")
+	ErrL1Wrapper = ToBaseError(ErrL1)
+	ErrL2Wrapper = ToBaseError(ErrL1Wrapper)
+	ErrL2        = NewBaseError(KindDatabaseError, "database failed", ErrL1)
+	ErrL3        = ToBaseError(ErrL2)
+	ErrL4        = NewBaseError(KindUnknown, "don't know", ErrL3)
+	ErrL5        = NewBaseError(KindCommunicationError, "network disconnected", ErrL4)
 )
 
 func TestKind(t *testing.T) {
@@ -26,12 +26,12 @@ func TestKind(t *testing.T) {
 		err  error
 		kind ErrKind
 	}{
-		{"Check the empty BaseError", L0Error, KindUnknown},
-		{"Check the non-BaseError", L1Error, KindUnknown},
-		{"Get the first error kind with 1 error wrapped", L2Error, KindDatabaseError},
-		{"Get the first error kind with 2 error wrapped", L3Error, KindDatabaseError},
-		{"Get the first non-unknown error kind with 3 error wrapped", L4Error, KindDatabaseError},
-		{"Get the first error kind with 4 error wrapped", L5Error, KindCommunicationError},
+		{"Check the empty BaseError", ErrL0, KindUnknown},
+		{"Check the non-BaseError", ErrL1, KindUnknown},
+		{"Get the first error kind with 1 error wrapped", ErrL2, KindDatabaseError},
+		{"Get the first error kind with 2 error wrapped", ErrL3, KindDatabaseError},
+		{"Get the first non-unknown error kind with 3 error wrapped", ErrL4, KindDatabaseError},
+		{"Get the first error kind with 4 error wrapped", ErrL5, KindCommunicationError},
 	}
 
 	for _, tt := range tests {
@@ -48,13 +48,13 @@ func TestMessage(t *testing.T) {
 		err  Error
 		msg  string
 	}{
-		{"Get the first level error message from an empty error", L0Error, ""},
-		{"Get the first level error message from an empty Error with 1 error wrapped", L1ErrorWrapper, L1Error.Error()},
-		{"Get the first level error message from an empty Error with 1 empty error wrapped", L2ErrorWrapper, L1Error.Error()},
-		{"Get the first level error message from an Error with 1 error wrapped", L2Error, L2Error.message},
-		{"Get the first level error message from an empty Error with 2 error wrapped", L3Error, L2Error.message},
-		{"Get the first level error message from an Error with 3 error wrapped", L4Error, L4Error.message},
-		{"Get the first level error message from an Error with 4 error wrapped", L5Error, L5Error.message},
+		{"Get the first level error message from an empty error", ErrL0, ""},
+		{"Get the first level error message from an empty Error with 1 error wrapped", ErrL1Wrapper, ErrL1.Error()},
+		{"Get the first level error message from an empty Error with 1 empty error wrapped", ErrL2Wrapper, ErrL1.Error()},
+		{"Get the first level error message from an Error with 1 error wrapped", ErrL2, ErrL2.message},
+		{"Get the first level error message from an empty Error with 2 error wrapped", ErrL3, ErrL2.message},
+		{"Get the first level error message from an Error with 3 error wrapped", ErrL4, ErrL4.message},
+		{"Get the first level error message from an Error with 4 error wrapped", ErrL5, ErrL5.message},
 	}
 
 	for _, tt := range tests {
@@ -71,13 +71,13 @@ func TestError(t *testing.T) {
 		err  Error
 		msgs []string
 	}{
-		{"Get the chained error message from an empty error", L0Error, []string{""}},
-		{"Get the chained error message from an empty Error with 1 error wrapped", L1ErrorWrapper, []string{L1Error.Error()}},
-		{"Get the chained error message from an empty Error with 1 empty error wrapped", L2ErrorWrapper, []string{L1Error.Error()}},
-		{"Get the chained error message from an Error with 1 error wrapped", L2Error, []string{L2Error.message, L1Error.Error()}},
-		{"Get the chained error message from an empty Error with 2 error wrapped", L3Error, []string{L2Error.message, L1Error.Error()}},
-		{"Get the chained error message from an Error with 3 error wrapped", L4Error, []string{L4Error.message, L2Error.message, L1Error.Error()}},
-		{"Get the chained error message from an Error with 4 error wrapped", L5Error, []string{L5Error.message, L4Error.message, L2Error.message, L1Error.Error()}},
+		{"Get the chained error message from an empty error", ErrL0, []string{""}},
+		{"Get the chained error message from an empty Error with 1 error wrapped", ErrL1Wrapper, []string{ErrL1.Error()}},
+		{"Get the chained error message from an empty Error with 1 empty error wrapped", ErrL2Wrapper, []string{ErrL1.Error()}},
+		{"Get the chained error message from an Error with 1 error wrapped", ErrL2, []string{ErrL2.message, ErrL1.Error()}},
+		{"Get the chained error message from an empty Error with 2 error wrapped", ErrL3, []string{ErrL2.message, ErrL1.Error()}},
+		{"Get the chained error message from an Error with 3 error wrapped", ErrL4, []string{ErrL4.message, ErrL2.message, ErrL1.Error()}},
+		{"Get the chained error message from an Error with 4 error wrapped", ErrL5, []string{ErrL5.message, ErrL4.message, ErrL2.message, ErrL1.Error()}},
 	}
 
 	for _, tt := range tests {

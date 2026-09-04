@@ -20,7 +20,7 @@ func TestHttpError(t *testing.T) {
 	}{
 		{"Wrapped error is go error", fmt.Errorf("go base error"), KindUnknown, ""},
 		{"Wrapped error is BaseError", ToBaseError(fmt.Errorf("base error")), KindCommunicationError, "communication base error"},
-		{"Wrapped error is BaseError with 4 error wrapped", L5Error, KindAuthenticationFailure, "http authentication failure"},
+		{"Wrapped error is BaseError with 4 error wrapped", ErrL5, KindAuthenticationFailure, "http authentication failure"},
 	}
 
 	for _, tt := range tests {

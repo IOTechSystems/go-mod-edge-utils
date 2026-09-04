@@ -139,7 +139,7 @@ func validateToken(tokenString string, secretKey string) (jwt.MapClaims, errors.
 	if err != nil {
 		return nil, errors.NewBaseError(errors.KindUnauthorized, invalidMsg, err)
 	}
-	if expTime == nil || expTime.Time.Before(time.Now()) {
+	if expTime == nil || expTime.Before(time.Now()) {
 		return nil, errors.NewBaseError(errors.KindUnauthorized, authRevokedMsg, nil)
 	}
 

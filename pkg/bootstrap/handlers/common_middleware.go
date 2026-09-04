@@ -8,6 +8,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -16,7 +17,6 @@ import (
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log"
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/models"
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/rest"
-
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
@@ -68,25 +68,60 @@ func LoggingMiddleware(logger log.Logger) echo.MiddlewareFunc {
 func RequestLimitMiddleware(sizeLimit int64, logger log.Logger) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
+			// A non-positive limit means no restriction is configured.
+			if sizeLimit <= 0 {
+				return next(c)
+			}
+
 			r := c.Request()
 			w := c.Response()
+			maxBytes := sizeLimit * 1024
+
 			switch r.Method {
 			case http.MethodPost, http.MethodPut, http.MethodPatch:
-				if sizeLimit > 0 && r.ContentLength > sizeLimit*1024 {
-					response := models.NewBaseResponse("", fmt.Sprintf("request size exceed Service.MaxRequestSize(%d KB)", sizeLimit), http.StatusRequestEntityTooLarge)
-					logger.Error(response.Message)
-
-					w.Header().Set(common.ContentType, common.ContentTypeJSON)
-					w.WriteHeader(response.StatusCode)
-					if err := json.NewEncoder(w).Encode(response); err != nil {
-						logger.Errorf("Error encoding the data:  %v", err)
-						// set Response.Committed to true in order to rewrite the status code
-						w.Committed = false
-						return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
-					}
+				// Fast path: reject when the advertised Content-Length already exceeds the limit.
+				if r.ContentLength > maxBytes {
+					return writeRequestTooLarge(w, sizeLimit, logger)
 				}
+				// Enforce the limit while reading so chunked or spoofed Content-Length
+				// requests cannot slip an oversized body past the check above.
+				r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
 			}
-			return next(c)
+
+			err := next(c)
+			// The downstream handler surfaces the limit as a *http.MaxBytesError when it
+			// reads the body; convert it to the same 413 response as the fast path.
+			//
+			// NOTE: this only covers echo-native handlers that propagate the read error
+			// up as their return value. Handlers mounted via echo.WrapHandler (e.g. the
+			// MCP Streamable HTTP handler) run the wrapped http.Handler and the adapter
+			// returns nil unconditionally, so a read error consumed inside ServeHTTP
+			// never reaches this branch. Byte-limit enforcement still holds regardless:
+			// the Content-Length fast path above rejects honest oversized bodies, and
+			// MaxBytesReader caps what the wrapped handler can read. The MCP SDK detects
+			// the *http.MaxBytesError itself and returns its own 413 (plain-text body),
+			// so only the response body shape differs from this middleware's JSON 413.
+			var maxBytesErr *http.MaxBytesError
+			if errors.As(err, &maxBytesErr) {
+				return writeRequestTooLarge(w, sizeLimit, logger)
+			}
+			return err
 		}
 	}
+}
+
+// writeRequestTooLarge writes the 413 response for an oversized request body.
+func writeRequestTooLarge(w *echo.Response, sizeLimit int64, logger log.Logger) error {
+	response := models.NewBaseResponse("", fmt.Sprintf("request size exceed Service.MaxRequestSize(%d KB)", sizeLimit), http.StatusRequestEntityTooLarge)
+	logger.Error(response.Message)
+
+	w.Header().Set(common.ContentType, common.ContentTypeJSON)
+	w.WriteHeader(response.StatusCode)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		logger.Errorf("Error encoding the data:  %v", err)
+		// set Response.Committed to true in order to rewrite the status code
+		w.Committed = false
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+	return nil
 }
