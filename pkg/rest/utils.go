@@ -356,6 +356,22 @@ func PutRequest(
 	return processRequest(ctx, returnValuePointer, req, authInjector)
 }
 
+// PatchRequest makes a PATCH request with the raw JSON data and unmarshals the response body to the returnValuePointer.
+func PatchRequest(
+	ctx context.Context,
+	returnValuePointer any,
+	baseUrl string, requestPath string,
+	requestParams url.Values,
+	data any, authInjector interfaces.AuthenticationInjector) errors.Error {
+
+	req, err := CreateRequestWithRawData(ctx, http.MethodPatch, baseUrl, requestPath, requestParams, data)
+	if err != nil {
+		return errors.BaseErrorWrapper(err)
+	}
+
+	return processRequest(ctx, returnValuePointer, req, authInjector)
+}
+
 // processRequest is a helper function to process the request and get the return value
 func processRequest(ctx context.Context,
 	returnValuePointer any, req *http.Request, authInjector interfaces.AuthenticationInjector) errors.Error {
