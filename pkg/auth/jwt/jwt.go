@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2024-2025 IOTech Ltd
+// Copyright (C) 2024-2026 IOTech Ltd
 //
 
 package jwt
@@ -24,6 +24,22 @@ func GetTokenStringFromRequest(r *http.Request) (string, errors.Error) {
 	}
 	tokenString := strings.TrimSpace(strings.TrimPrefix(auth, bearer))
 	return tokenString, nil
+}
+
+// GetExpiresAtFromRequest returns the exp claim of the Bearer JWT in the Authorization header, or false if there is none.
+// Cookies are not read, and the signature is NOT verified, so call this only after an authentication middleware.
+func GetExpiresAtFromRequest(r *http.Request) (time.Time, bool) {
+	auth := r.Header.Get(authorizationHeader)
+	bearerPrefix := bearer + " "
+	if len(auth) <= len(bearerPrefix) || !strings.EqualFold(auth[:len(bearerPrefix)], bearerPrefix) {
+		return time.Time{}, false
+	}
+
+	claims := &jwt.RegisteredClaims{}
+	if _, _, err := jwt.NewParser().ParseUnverified(strings.TrimSpace(auth[len(bearerPrefix):]), claims); err != nil || claims.ExpiresAt == nil {
+		return time.Time{}, false
+	}
+	return claims.ExpiresAt.Time, true
 }
 
 // CreateToken creates a new token with the given name and expiration time, specified in hours from now with the default expiration time of 2 hours for access token and 7 days for refresh token

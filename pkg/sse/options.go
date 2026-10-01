@@ -10,6 +10,7 @@ import "time"
 type HandlerConfig struct {
 	PollingService PollingService
 	CustomTopic    string
+	JWTDeadline    bool
 }
 
 // HandlerOption is a function that modifies the HandlerConfig.
@@ -26,6 +27,15 @@ func WithPollingService(service PollingService) HandlerOption {
 func WithCustomTopic(topic string) HandlerOption {
 	return func(config *HandlerConfig) {
 		config.CustomTopic = topic
+	}
+}
+
+// WithJWTDeadline closes each SSE connection when the Bearer JWT in its Authorization header expires.
+// An already-expired JWT is rejected with 403; a JWT without exp, or sent only in a cookie, gets no deadline.
+// The signature is NOT verified, so use this only behind an authentication middleware.
+func WithJWTDeadline() HandlerOption {
+	return func(config *HandlerConfig) {
+		config.JWTDeadline = true
 	}
 }
 

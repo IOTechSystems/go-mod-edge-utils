@@ -78,6 +78,7 @@ sseManager.Publish(sse.ConstructSSETopic(c), event)
 | `Handler(m, opts...)`           | Echo HandlerFunc that opens an SSE stream.               |
 | `WithCustomTopic(topic)`        | Override the URL-derived topic.                          |
 | `WithPollingService(s)`         | Attach a polling service to drive events for the topic.  |
+| `WithJWTDeadline()`             | Close a connection when its header Bearer JWT expires.   |
 | `ConstructSSETopic(c)`          | Build the default topic from a request URL.              |
 | `NewPolling(lc, fn, opts...)`   | Construct a polling service.                             |
 | `WithCustomPollingInterval(d)`  | Interval between polls (default 5 s).                    |
