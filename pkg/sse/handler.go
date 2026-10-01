@@ -6,12 +6,19 @@ package sse
 
 import (
 	"context"
+	"errors"
+	"net/http"
 	"time"
 
 	"github.com/labstack/echo/v4"
+
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/auth/jwt"
 )
 
 const defaultHeartbeatInterval = 30 * time.Second
+
+// errJWTExpired is the cause of the request deadline set by WithJWTDeadline.
+var errJWTExpired = errors.New("sse: JWT expired")
 
 // Handler returns an echo.HandlerFunc that opens an SSE stream for the
 // caller. It atomically subscribes to the topic (creating the topic's
@@ -23,6 +30,8 @@ const defaultHeartbeatInterval = 30 * time.Second
 //   - WithPollingService: attach a polling service that produces events for
 //     the topic. The service starts on the first subscribe and stops when
 //     the last subscriber leaves.
+//   - WithJWTDeadline: close each connection when the Bearer JWT in its
+//     Authorization header expires.
 func Handler(m *Manager, opts ...HandlerOption) echo.HandlerFunc {
 	config := &HandlerConfig{}
 	for _, opt := range opts {
@@ -34,6 +43,25 @@ func Handler(m *Manager, opts ...HandlerOption) echo.HandlerFunc {
 		if topic == "" {
 			topic = ConstructSSETopic(c)
 		}
+
+		if config.JWTDeadline {
+			// Read the expiry from each request, as one Handler serves requests carrying different JWTs
+			if exp, ok := jwt.GetExpiresAtFromRequest(c.Request()); !ok {
+				m.lc.Debugf("sse: no JWT expiry found for topic %q, the connection will not be closed on token expiry", topic)
+			} else if !time.Now().Before(exp) {
+				m.lc.Debugf("sse: JWT expired at %s, rejecting subscription to topic %q", exp.Format(time.RFC3339), topic)
+				// 403 with "token has expired" in the message follows proxy-auth's response for an expired
+				// token, which the UI matches on to refresh the token, so keep both when changing this.
+				return echo.NewHTTPError(http.StatusForbidden, "sse: token has expired")
+			} else {
+				m.lc.Debugf("sse: JWT expiry %s added as the deadline for topic %q, the connection will be closed in %s",
+					exp.Format(time.RFC3339), topic, time.Until(exp).Round(time.Second))
+				ctx, cancel := context.WithDeadlineCause(c.Request().Context(), exp, errJWTExpired)
+				defer cancel()
+				c.SetRequest(c.Request().WithContext(ctx))
+			}
+		}
+
 		m.lc.Debugf("sse: handler subscribing to topic %q", topic)
 
 		b, ch, isNew := m.subscribe(topic, config.PollingService)
@@ -92,7 +120,11 @@ func handleSSE(c echo.Context, serviceCtx context.Context, b *broadcaster, ch su
 			}
 
 		case <-c.Request().Context().Done():
-			b.lc.Debug("sse: request cancelled or timed out")
+			if errors.Is(context.Cause(c.Request().Context()), errJWTExpired) {
+				b.lc.Debug("sse: JWT expired, closing SSE connection")
+			} else {
+				b.lc.Debugf("sse: request ended, closing SSE connection: %v", context.Cause(c.Request().Context()))
+			}
 			return nil
 
 		case <-serviceCtx.Done():

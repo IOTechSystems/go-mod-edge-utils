@@ -24,6 +24,12 @@ func TestWithCustomTopic(t *testing.T) {
 	assert.Equal(t, "my-topic", config.CustomTopic)
 }
 
+func TestWithJWTDeadline(t *testing.T) {
+	config := &HandlerConfig{}
+	WithJWTDeadline()(config)
+	assert.True(t, config.JWTDeadline)
+}
+
 func TestWithCustomPollingInterval(t *testing.T) {
 	config := &PollingConfig{}
 	WithCustomPollingInterval(10 * time.Second)(config)
