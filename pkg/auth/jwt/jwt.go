@@ -36,7 +36,7 @@ func GetExpiresAtFromRequest(r *http.Request) (time.Time, bool) {
 	}
 
 	claims := &jwt.RegisteredClaims{}
-	if _, _, err := jwt.NewParser().ParseUnverified(strings.TrimSpace(auth[len(bearerPrefix):]), claims); err != nil || claims.ExpiresAt == nil {
+	if _, _, err := jwt.NewParser().ParseUnverified(strings.TrimSpace(auth[len(bearerPrefix):]), claims); err != nil || claims.ExpiresAt == nil { // NOSONAR: only reads exp; the signature is verified by the auth middleware
 		return time.Time{}, false
 	}
 	return claims.ExpiresAt.Time, true
