@@ -115,7 +115,7 @@ func (b *HttpServer) BootstrapHandler(
 		// Bound the shutdown so live MCP Streamable HTTP / SSE handlers cannot
 		// block process exit indefinitely. Long-lived agent sessions never
 		// return on their own; force-close after the deadline.
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownGracePeriod)
+		shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), shutdownGracePeriod)
 		defer cancel()
 		if err := server.Shutdown(shutdownCtx); err != nil {
 			logger.Warnf("graceful web server shutdown exceeded %s; forcing close: %v", shutdownGracePeriod, err)

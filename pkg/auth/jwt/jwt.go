@@ -164,7 +164,7 @@ func validateToken(tokenString string, secretKey string) (jwt.MapClaims, errors.
 
 // SetTokensToCookie sets the access token and refresh token to the response cookie
 func SetTokensToCookie(w http.ResponseWriter, t *TokenDetails) {
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ // nolint:gosec // no Secure flag: the service may be served over plain HTTP
 		Name:     AccessTokenCookie,
 		Value:    t.AccessToken,
 		Path:     "/",
@@ -172,7 +172,7 @@ func SetTokensToCookie(w http.ResponseWriter, t *TokenDetails) {
 		SameSite: http.SameSiteStrictMode,
 		Expires:  time.Unix(t.AtExpires, 0),
 	})
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ // nolint:gosec // no Secure flag: the service may be served over plain HTTP
 		Name:     RefreshTokenCookie,
 		Value:    t.RefreshToken,
 		Path:     "/",
@@ -197,7 +197,7 @@ func GetTokensFromCookie(r *http.Request) (string, string) {
 
 // RemoveTokensFromCookie removes the access token and refresh token from the response cookie
 func RemoveTokensFromCookie(w http.ResponseWriter) {
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ // nolint:gosec // no Secure flag: the service may be served over plain HTTP
 		Name:     AccessTokenCookie,
 		Value:    "",
 		Path:     "/",
@@ -205,7 +205,7 @@ func RemoveTokensFromCookie(w http.ResponseWriter) {
 		SameSite: http.SameSiteStrictMode,
 		Expires:  time.Now(),
 	})
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ // nolint:gosec // no Secure flag: the service may be served over plain HTTP
 		Name:     RefreshTokenCookie,
 		Value:    "",
 		Path:     "/",

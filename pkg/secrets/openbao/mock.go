@@ -73,7 +73,7 @@ func GetMockTokenServer(tokenDataMap *sync.Map) *httptest.Server {
 			}
 		} else {
 			rw.WriteHeader(404)
-			_, _ = fmt.Fprintf(rw, "Unknown urlPath: %s", urlPath)
+			_, _ = fmt.Fprintf(rw, "Unknown urlPath: %s", urlPath) // nolint:gosec // test mock server
 		}
 	}))
 	return server
