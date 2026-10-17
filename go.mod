@@ -1,6 +1,6 @@
 module github.com/IOTechSystems/go-mod-edge-utils/v2
 
-go 1.25.0
+go 1.27
 
 require (
 	github.com/go-kit/log v0.2.1

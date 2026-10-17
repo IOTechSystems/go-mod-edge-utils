@@ -506,7 +506,7 @@ func makeRequest(req *http.Request, authInjector interfaces.AuthenticationInject
 		}
 	}
 
-	resp, err := client.Do(req)
+	resp, err := client.Do(req) // nolint:gosec // request URL is supplied by the caller
 	if err != nil {
 		return nil, errors.NewBaseError(errors.KindServiceUnavailable, "failed to send a http request", err)
 	}
