@@ -30,8 +30,8 @@ var ceilinged = map[string]bool{
 
 // Deadline bounds every ceilinged method at ceiling, on the caller's own context.
 // ceiling is a parameter so a test can pass 50 ms instead of waiting 30 s.
-// ⚠ Register it LAST so it nests OUTERMOST — only from there does it bound the
-// whole call.
+// ⚠ Register it last of the request middlewares — only MetaTools goes outside
+// it — so it bounds the whole call.
 func Deadline(ceiling time.Duration) sdkmcp.Middleware {
 	// A non-positive one expires every call from the outermost layer. Loud at boot.
 	if ceiling <= 0 {

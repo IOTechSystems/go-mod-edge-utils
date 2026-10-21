@@ -220,6 +220,13 @@ func (r *Registry[C]) Routes() map[string][]Route {
 	return out
 }
 
+// Behaviour reports a tool's declared Behaviour, and false for a name that is
+// not registered.
+func (r *Registry[C]) Behaviour(name string) (Behaviour, bool) {
+	t, ok := r.tools[name]
+	return t.Behaviour, ok
+}
+
 // IsLocal reports whether a tool is served entirely inside the MCP service and
 // so has no upstream route to authorize.
 func (r *Registry[C]) IsLocal(name string) bool { return r.tools[name].Local }
