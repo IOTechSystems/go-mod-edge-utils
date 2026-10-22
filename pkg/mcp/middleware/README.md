@@ -103,8 +103,13 @@ it does not list, passes through unchanged.
 
 `Visibility` treats the three meta-tools as Local by itself, so the service does
 not mark them: they are this module's, not in any service's registry. The
-exemption holds only for a name with no routes, so a service tool that shares a
-meta-tool's name and declares routes is filtered like any other.
+exemption holds only for a name with no routes.
+
+⚠ The three names are reserved: `tool.Registry.Register` panics on them.
+`MetaTools` intercepts by name, and go-sdk's `AddTool` replaces a tool of the same
+name without an error, so a service tool called `search_tools` would be silently
+replaced on a meta-tool server. A tool added to a server outside the registry gets
+no such check; if it declares routes, `Visibility` still filters it.
 
 ⚠ Its own `tools/list` carries the outer call's `Extra`, so `Visibility` sees the
 caller's bearer and filters the catalogue for them. The read follows

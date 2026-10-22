@@ -348,3 +348,14 @@ func TestRegistry_Behaviour(t *testing.T) {
 	assert.False(t, ok)
 	assert.Equal(t, Behaviour(0), b)
 }
+
+// MetaTools intercepts the meta-tool names, so a service tool using one would
+// never be reached on a meta-tool server. Registration refuses them at boot.
+func TestRegister_PanicsOnMetaToolName(t *testing.T) {
+	for _, name := range []string{"search_tools", "call_read_tool", "call_write_tool"} {
+		got := registerPanic(t, Tool[testContainer]{Name: name, Local: true, Behaviour: ReadOnly, Add: noopAdd})
+
+		require.NotNil(t, got, name)
+		assert.Contains(t, got, "reserved for the meta-tools", name)
+	}
+}
