@@ -466,3 +466,20 @@ func TestMetaTools_HiddenToolPassesThrough(t *testing.T) {
 	require.False(t, res.IsError, texts(res))
 	assert.Equal(t, map[string]any{"tool": "hidden_read", "args": map[string]any{"q": "z"}}, structured(t, res))
 }
+
+// A typed nil request must reach next untouched, as in the other middleware of
+// this package, not panic on call.Params.
+func TestMetaTools_NilCallPassesThrough(t *testing.T) {
+	behaviourOf := func(string) (tool.Behaviour, bool) { return 0, false }
+	var got sdkmcp.Request
+	next := sdkmcp.MethodHandler(func(_ context.Context, _ string, req sdkmcp.Request) (sdkmcp.Result, error) {
+		got = req
+		return nil, nil
+	})
+	var nilCall *sdkmcp.CallToolRequest
+
+	assert.NotPanics(t, func() {
+		_, _ = MetaTools(&recordingLogger{}, nil, behaviourOf)(next)(context.Background(), methodToolsCall, nilCall)
+	})
+	assert.Equal(t, sdkmcp.Request(nilCall), got)
+}

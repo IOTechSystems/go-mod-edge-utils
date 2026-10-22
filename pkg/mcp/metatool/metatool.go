@@ -60,7 +60,7 @@ func searchToolsDescription(domains string) string {
 // searchToolsInput and callToolInput only declare the meta-tools' input schemas;
 // the middleware reads the raw arguments itself.
 type searchToolsInput struct {
-	Query string `json:"query,omitempty" jsonschema:"words to match against tool names and descriptions, or one tool's exact name; omit to list all"`
+	Query string `json:"query,omitempty" jsonschema:"words to match against tool names and descriptions, in English, or one tool's exact name; omit to list all"`
 }
 
 type callToolInput struct {

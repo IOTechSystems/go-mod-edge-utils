@@ -41,7 +41,7 @@ func MetaTools(lc log.Logger, pinned []string, behaviourOf func(name string) (to
 				return listMetaTools(ctx, next, method, req, listed)
 			case methodToolsCall:
 				call, ok := req.(*sdkmcp.CallToolRequest)
-				if !ok || call.Params == nil || !metatool.IsMetaTool(call.Params.Name) {
+				if !ok || call == nil || call.Params == nil || !metatool.IsMetaTool(call.Params.Name) {
 					break
 				}
 				m := metaToolCall{lc: lc, next: next, call: call, behaviourOf: behaviourOf}
