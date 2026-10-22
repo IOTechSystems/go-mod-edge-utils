@@ -29,8 +29,7 @@ const (
 )
 
 // IsMetaTool reports whether name is one of the three meta-tools. They are not
-// in the service's tool registry, so the visibility filter must treat them as
-// Local.
+// in the service's tool registry; middleware.Visibility treats them as Local.
 func IsMetaTool(name string) bool {
 	switch name {
 	case SearchTools, CallReadTool, CallWriteTool:

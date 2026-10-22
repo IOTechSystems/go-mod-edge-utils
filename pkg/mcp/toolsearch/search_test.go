@@ -65,6 +65,23 @@ func TestSearch_ExactName(t *testing.T) {
 	assert.Equal(t, schema, res.Tools[0].InputSchema)
 }
 
+func TestSearch_ExactNameIgnoresCase(t *testing.T) {
+	catalogue := []*mcp.Tool{
+		{Name: "get_device", Description: "Get one device.", InputSchema: map[string]any{"type": "object"}},
+		{Name: "Get_Thing", Description: "Get one thing.", InputSchema: map[string]any{"type": "object"}},
+		{Name: "query_devices", Description: "List devices."},
+	}
+	for query, want := range map[string]string{"GET_DEVICE": "get_device", "get_thing": "Get_Thing"} {
+		res := Search(catalogue, query, readKind)
+
+		assert.Equal(t, 1, res.Total, query)
+		require.Len(t, res.Tools, 1, query)
+		assert.Equal(t, want, res.Tools[0].Name, query)
+		assert.NotEmpty(t, res.Tools[0].Description, query)
+		assert.NotNil(t, res.Tools[0].InputSchema, query)
+	}
+}
+
 func TestSearch_Ranking(t *testing.T) {
 	catalogue := []*mcp.Tool{
 		{Name: "get_device", Description: "Get one device."},

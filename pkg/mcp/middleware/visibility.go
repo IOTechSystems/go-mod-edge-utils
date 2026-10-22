@@ -18,6 +18,7 @@ import (
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log"
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/mcp/callstate"
 	mcpCommon "github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/mcp/common"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/mcp/metatool"
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/mcp/tool"
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/models"
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/rest"
@@ -134,8 +135,9 @@ func RejectToolsList(err error) sdkmcp.Middleware {
 // use: it batch-authorizes the union of every listed tool's declared route
 // universe and keeps a tool when any one route is allowed, and declares the
 // result private so no intermediary may forward one caller's catalogue to the
-// next. Union semantics, the local-tool exemption, the fail-closed paths and the
-// pagination caveat are all explained in README.md.
+// next. A meta-tool with no routes counts as local whatever isLocal says. Union
+// semantics, the local-tool exemption, the fail-closed paths and the pagination
+// caveat are all explained in README.md.
 func Visibility(lc log.Logger, client RouteAuthorizer, toolRoutes func() map[string][]tool.Route, isLocal func(string) bool, resource string) sdkmcp.Middleware {
 	return func(next sdkmcp.MethodHandler) sdkmcp.MethodHandler {
 		return func(ctx context.Context, method string, req sdkmcp.Request) (sdkmcp.Result, error) {
@@ -166,7 +168,12 @@ func Visibility(lc log.Logger, client RouteAuthorizer, toolRoutes func() map[str
 			}
 
 			universes := toolRoutes()
-			routes := dedupedRoutes(result.Tools, universes, isLocal)
+			// The meta-tools are this module's own, so no service has to mark them
+			// local. A routed tool of the same name is the service's and is filtered.
+			local := func(name string) bool {
+				return isLocal(name) || (metatool.IsMetaTool(name) && len(universes[name]) == 0)
+			}
+			routes := dedupedRoutes(result.Tools, universes, local)
 			allowed := map[tool.Route]bool{}
 			if len(routes) > 0 {
 				results, authErr := client.AuthRoutes(ctx, map[string]string{
@@ -210,7 +217,7 @@ func Visibility(lc log.Logger, client RouteAuthorizer, toolRoutes func() map[str
 
 			visible := make([]*sdkmcp.Tool, 0, len(result.Tools))
 			for _, t := range result.Tools {
-				if isLocal(t.Name) || anyAllowed(universes[t.Name], allowed) {
+				if local(t.Name) || anyAllowed(universes[t.Name], allowed) {
 					visible = append(visible, t)
 				}
 			}

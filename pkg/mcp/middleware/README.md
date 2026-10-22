@@ -101,6 +101,11 @@ everything inside — `Deadline`, `Visibility`, `Auth`, `Logging`,
 for a direct call. Any other request, including a direct `tools/call` of a tool
 it does not list, passes through unchanged.
 
+`Visibility` treats the three meta-tools as Local by itself, so the service does
+not mark them: they are this module's, not in any service's registry. The
+exemption holds only for a name with no routes, so a service tool that shares a
+meta-tool's name and declares routes is filtered like any other.
+
 ⚠ Its own `tools/list` carries the outer call's `Extra`, so `Visibility` sees the
 caller's bearer and filters the catalogue for them. The read follows
 `NextCursor` to the last page, and each page costs one `AuthRoutes` request and
@@ -169,7 +174,8 @@ A tool with no upstream route to authorize — route-authz cannot speak to it �
 `bearerAuthn` having required a valid token. The marking is declared, never
 inferred — see the panic above. Which tools are Local, and why nothing authorizes
 each of them, is the installing service's to document — see central-mcp's
-middleware README for its three.
+middleware README for its three. The meta-tools are the one exception, exempted
+by `Visibility` itself — see "Meta-tools".
 
 ⚠ **A Local tool may call an upstream.** That matters because `authz.Transport`
 authorizes `ServicePrefix + req.URL.EscapedPath()` of the request actually being

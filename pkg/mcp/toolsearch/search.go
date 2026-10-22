@@ -92,12 +92,12 @@ func schemaPropertyNames(schema any) []string {
 	return names
 }
 
-// rank returns the tools matching query, best first. An exact tool name returns
-// that tool alone; no query terms return every tool by name.
+// rank returns the tools matching query, best first. A tool's exact name, in any
+// case, returns that tool alone; no query terms return every tool by name.
 func rank(catalogue []*mcp.Tool, query string) []*mcp.Tool {
-	q := strings.ToLower(strings.TrimSpace(query))
+	q := strings.TrimSpace(query)
 	for _, t := range catalogue {
-		if t.Name == q {
+		if strings.EqualFold(t.Name, q) {
 			return []*mcp.Tool{t}
 		}
 	}
