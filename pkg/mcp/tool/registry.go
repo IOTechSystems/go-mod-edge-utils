@@ -24,6 +24,8 @@ import (
 	"sort"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/mcp/metatool"
 )
 
 // Route is the (URI, method) pair security-proxy-auth's RBAC is keyed by. The URI
@@ -143,6 +145,11 @@ func (r *Registry[C]) Register(t Tool[C]) {
 	if t.Name == "" {
 		panic("tool: registered with an empty name")
 	}
+	// MetaTools intercepts these names, and on a meta-tool server
+	// metatool.Register would silently replace a tool that used one.
+	if metatool.IsMetaTool(t.Name) {
+		panic(fmt.Sprintf("tool: %q is reserved for the meta-tools of pkg/mcp/metatool", t.Name))
+	}
 	if t.Add == nil {
 		panic(fmt.Sprintf("tool: %q registered with no Add function", t.Name))
 	}
@@ -218,6 +225,13 @@ func (r *Registry[C]) Routes() map[string][]Route {
 		out[name] = slices.Clone(t.VisibilityRoutes)
 	}
 	return out
+}
+
+// Behaviour reports a tool's declared Behaviour, and false for a name that is
+// not registered.
+func (r *Registry[C]) Behaviour(name string) (Behaviour, bool) {
+	t, ok := r.tools[name]
+	return t.Behaviour, ok
 }
 
 // IsLocal reports whether a tool is served entirely inside the MCP service and

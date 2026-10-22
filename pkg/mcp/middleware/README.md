@@ -6,14 +6,17 @@ security-proxy-auth — the MCP service never evaluates policy itself.
 
 This package holds the mechanisms: argument decoding (`DecodeArguments`), request
 logging (`Logging`), tools/call authorization (`Auth`), tools/list visibility
-filtering (`Visibility`) and the whole-call deadline (`Deadline`). The installing
+filtering (`Visibility`), the whole-call deadline (`Deadline`) and the meta-tool
+surface (`MetaTools`), installed only on a server that serves meta-tools. The installing
 service resolves their dependencies and fixes the order they install in
 (central-mcp's `internal/controller/middleware` is the reference wiring), under
-two positional contracts:
+three positional contracts:
 
-- `Deadline` must nest **outermost**, the only position it works from: its
-  `context.WithTimeout` has to be on the context every layer below uses.
+- `Deadline` must nest outside every request middleware, the only position it
+  works from: its `context.WithTimeout` has to be on the context every layer
+  below uses. Only `MetaTools` goes outside it.
 - `DecodeArguments` must nest **innermost** — see below.
+- `MetaTools`, where installed, must nest **outermost** — see "Meta-tools".
 
 ### What the ceiling bounds
 
@@ -74,6 +77,55 @@ filtering from drifting apart: a separate layer that rebuilt the
 `ListToolsResult` would decide for itself which tools are on it, and could put
 back what `visibility` removed.
 
+## Meta-tools
+
+A client that binds every listed tool on every turn can be served a small
+surface instead: the three meta-tools of `pkg/mcp/metatool` (`search_tools`,
+`call_read_tool`, `call_write_tool`) plus a few pinned tools. The service builds
+a second server that registers every tool, `metatool.Register`s the three, and
+installs `MetaTools(lc, pinned, behaviourOf)` after every other middleware.
+
+⚠ `MetaTools` is optional and has had no eval: how much it changes a small
+model's accuracy against the full surface is not measured. Keep the full surface
+as the default and serve the meta-tool surface beside it, picked by a header the
+client sets in its connection settings (central-mcp's `getServer` reads
+`X-MCP-Toolset`). A client opts in by configuration; changing surfaces mid-session
+would leave it holding a tool list the new surface does not serve.
+
+`MetaTools` makes no request of its own. It trims `tools/list` to the meta-tools
+and `pinned`, answers `search_tools` from a `tools/list` it sends through `next`
+(`pkg/mcp/toolsearch` ranks it), and rewrites `call_read_tool` /
+`call_write_tool` into a `tools/call` of the inner tool. Because it is outermost,
+everything inside — `Deadline`, `Visibility`, `Auth`, `Logging`,
+`DecodeArguments`, the SDK's argument validation — sees the inner tool exactly as
+for a direct call. Any other request, including a direct `tools/call` of a tool
+it does not list, passes through unchanged.
+
+`Visibility` treats the three meta-tools as Local by itself, so the service does
+not mark them: they are this module's, not in any service's registry. The
+exemption holds only for a name with no routes.
+
+⚠ The three names are reserved: `tool.Registry.Register` panics on them.
+`MetaTools` intercepts by name, and go-sdk's `AddTool` replaces a tool of the same
+name without an error, so a service tool called `search_tools` would be silently
+replaced on a meta-tool server. A tool added to a server outside the registry gets
+no such check; if it declares routes, `Visibility` still filters it.
+
+⚠ Its own `tools/list` carries the outer call's `Extra`, so `Visibility` sees the
+caller's bearer and filters the catalogue for them. The read follows
+`NextCursor` to the last page, and each page costs one `AuthRoutes` request and
+one `Logging` line `method=tools/list`.
+
+⚠ `Deadline` sits inside it, so the ceiling bounds each `next` call, not the
+meta-tool call: `search_tools` makes one per catalogue page, and a validation
+error on `call_*_tool` adds a catalogue read after the inner call. The outer call
+has no single bound; each piece of it has `ToolCallCeiling`.
+
+Its trimmed `tools/list` keeps the page's `NextCursor`, so with a `PageSize`
+smaller than the full surface a client must follow the cursor to see every
+meta-tool and pinned tool — the same limit as "Filtering does not refill a page"
+below.
+
 ## Route universes: one declaration, two consumers
 
 proxy-auth's RBAC is keyed by `(URI, method)` — an Edge Central REST endpoint, not
@@ -127,7 +179,8 @@ A tool with no upstream route to authorize — route-authz cannot speak to it �
 `bearerAuthn` having required a valid token. The marking is declared, never
 inferred — see the panic above. Which tools are Local, and why nothing authorizes
 each of them, is the installing service's to document — see central-mcp's
-middleware README for its three.
+middleware README for its three. The meta-tools are the one exception, exempted
+by `Visibility` itself — see "Meta-tools".
 
 ⚠ **A Local tool may call an upstream.** That matters because `authz.Transport`
 authorizes `ServicePrefix + req.URL.EscapedPath()` of the request actually being

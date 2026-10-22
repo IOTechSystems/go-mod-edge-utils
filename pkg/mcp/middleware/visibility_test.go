@@ -21,6 +21,7 @@ import (
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/errors"
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/log"
 	mcpCommon "github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/mcp/common"
+	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/mcp/metatool"
 	"github.com/IOTechSystems/go-mod-edge-utils/v2/pkg/mcp/tool"
 )
 
@@ -155,6 +156,33 @@ func TestVisibility_LocalToolsAlwaysVisible(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []string{nameSearchGuidance, nameGetGuidance}, namesOf(t, res),
 		"local tools have no upstream route and must survive an all-deny result")
+}
+
+// The meta-tools have no routes and no service marks them local, yet a meta-tool
+// server must always list them.
+func TestVisibility_MetaToolsAreLocal(t *testing.T) {
+	client := &stubBatchClient{allow: map[tool.Route]bool{}} // deny everything
+	mw := Visibility(log.NewNopeLogger(), client, func() map[string][]tool.Route { return nil },
+		func(string) bool { return false }, testVisibilityResource)
+
+	res, err := mw(listHandler(metatool.SearchTools, metatool.CallReadTool, metatool.CallWriteTool))(
+		context.Background(), "tools/list", listReq("Bearer abc"))
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{metatool.SearchTools, metatool.CallReadTool, metatool.CallWriteTool}, namesOf(t, res))
+}
+
+// A service tool that happens to share a meta-tool's name declares routes, so it
+// is filtered like any other tool rather than shown to everyone.
+func TestVisibility_RoutedNameIsNotExempt(t *testing.T) {
+	client := &stubBatchClient{allow: map[tool.Route]bool{}} // deny everything
+	mw := newVisibilityMW(client, map[string][]tool.Route{metatool.SearchTools: {getDevices}})
+
+	res, err := mw(listHandler(metatool.SearchTools))(context.Background(), "tools/list", listReq("Bearer abc"))
+
+	require.NoError(t, err)
+	assert.Empty(t, namesOf(t, res))
+	assert.Equal(t, []tool.Route{getDevices}, client.lastRoutes, "its route must still be authorized")
 }
 
 // An all-deny answer is a successful list with no upstream tools — not an error.

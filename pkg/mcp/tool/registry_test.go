@@ -333,3 +333,29 @@ func TestServiceRoute_PrefixesServiceKey(t *testing.T) {
 	got := ServiceRoute("core-metadata", "/api/v3/device/all", http.MethodGet)
 	assert.Equal(t, Route{URI: "/core-metadata/api/v3/device/all", Method: http.MethodGet}, got)
 }
+
+// Behaviour is how a meta-tool tells a read from a write by name; an unknown name
+// must say so rather than read as some Behaviour.
+func TestRegistry_Behaviour(t *testing.T) {
+	r := NewRegistry[testContainer]()
+	r.Register(Tool[testContainer]{Name: "search_guidance", Local: true, Behaviour: ReadOnly, Add: noopAdd})
+
+	b, ok := r.Behaviour("search_guidance")
+	assert.True(t, ok)
+	assert.Equal(t, ReadOnly, b)
+
+	b, ok = r.Behaviour("nope")
+	assert.False(t, ok)
+	assert.Equal(t, Behaviour(0), b)
+}
+
+// MetaTools intercepts the meta-tool names, so a service tool using one would
+// never be reached on a meta-tool server. Registration refuses them at boot.
+func TestRegister_PanicsOnMetaToolName(t *testing.T) {
+	for _, name := range []string{"search_tools", "call_read_tool", "call_write_tool"} {
+		got := registerPanic(t, Tool[testContainer]{Name: name, Local: true, Behaviour: ReadOnly, Add: noopAdd})
+
+		require.NotNil(t, got, name)
+		assert.Contains(t, got, "reserved for the meta-tools", name)
+	}
+}
