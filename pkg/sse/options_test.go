@@ -5,10 +5,12 @@
 package sse
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestWithPollingService(t *testing.T) {
@@ -59,4 +61,11 @@ func TestWithStopCallback(t *testing.T) {
 	assert.NotNil(t, config.StopCallback)
 	config.StopCallback()
 	assert.True(t, called)
+}
+
+func TestWithFirstMessage(t *testing.T) {
+	config := &HandlerConfig{}
+	WithFirstMessage(func(_ context.Context, _ PollingService) any { return "first" })(config)
+	require.NotNil(t, config.FirstMessage)
+	assert.Equal(t, "first", config.FirstMessage(context.Background(), nil))
 }

@@ -57,6 +57,30 @@ func devicesHandler(c echo.Context) error {
 e.GET("/api/v1/devices/sse", devicesHandler)
 ```
 
+### Per-subscriber first message
+
+```go
+// Each new subscriber gets the current state first, then the broadcasts.
+// service is the polling service bound to the topic, not necessarily the
+// one this request passed, and nil when the topic has none. Return an
+// untyped nil to write nothing (a nil pointer is written as "data: null");
+// return promptly, as heartbeats start only after fn returns.
+sse.Handler(sseManager,
+    sse.WithPollingService(holder),
+    sse.WithFirstMessage(func(ctx context.Context, service sse.PollingService) any {
+        h, ok := service.(*stateHolder)
+        if !ok {
+            return nil
+        }
+        snapshot := h.Snapshot() // *Snapshot
+        if snapshot == nil {
+            return nil
+        }
+        return snapshot
+    }),
+)
+```
+
 ### URL-derived topic (multiple views of the same endpoint)
 
 ```go
@@ -79,6 +103,7 @@ sseManager.Publish(sse.ConstructSSETopic(c), event)
 | `WithCustomTopic(topic)`        | Override the URL-derived topic.                          |
 | `WithPollingService(s)`         | Attach a polling service to drive events for the topic.  |
 | `WithJWTDeadline()`             | Close a connection when its header Bearer JWT expires.   |
+| `WithFirstMessage(fn)`          | Write a subscriber's own first message before broadcasts. |
 | `ConstructSSETopic(c)`          | Build the default topic from a request URL.              |
 | `NewPolling(lc, fn, opts...)`   | Construct a polling service.                             |
 | `WithCustomPollingInterval(d)`  | Interval between polls (default 5 s).                    |
