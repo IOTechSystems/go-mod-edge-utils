@@ -60,23 +60,25 @@ e.GET("/api/v1/devices/sse", devicesHandler)
 ### Per-subscriber first message
 
 ```go
-// Each new subscriber gets the current state first, then the broadcasts.
-// service is the polling service bound to the topic, not necessarily the
-// one this request passed, and nil when the topic has none. Return an
-// untyped nil to write nothing (a nil pointer is written as "data: null");
-// return promptly, as heartbeats start only after fn returns.
+// Each new subscriber gets the current state first, then the broadcasts,
+// minus those skip returns true for. Return an untyped nil for no first
+// message, a nil skip to drop nothing; both fn and skip must return promptly.
 sse.Handler(sseManager,
     sse.WithPollingService(holder),
-    sse.WithFirstMessage(func(ctx context.Context, service sse.PollingService) any {
+    sse.WithFirstMessage(func(ctx context.Context, service sse.PollingService) (any, func(any) bool) {
         h, ok := service.(*stateHolder)
         if !ok {
-            return nil
+            return nil, nil
         }
         snapshot := h.Snapshot() // *Snapshot
         if snapshot == nil {
-            return nil
+            return nil, nil
         }
-        return snapshot
+        skip := func(msg any) bool {
+            m, ok := msg.(sequenced)
+            return ok && m.Seq() <= snapshot.Seq
+        }
+        return snapshot, skip
     }),
 )
 ```
@@ -103,7 +105,7 @@ sseManager.Publish(sse.ConstructSSETopic(c), event)
 | `WithCustomTopic(topic)`        | Override the URL-derived topic.                          |
 | `WithPollingService(s)`         | Attach a polling service to drive events for the topic.  |
 | `WithJWTDeadline()`             | Close a connection when its header Bearer JWT expires.   |
-| `WithFirstMessage(fn)`          | Write a subscriber's own first message before broadcasts. |
+| `WithFirstMessage(fn)`          | Write a subscriber's own first message before broadcasts, and skip the broadcasts its predicate covers. |
 | `ConstructSSETopic(c)`          | Build the default topic from a request URL.              |
 | `NewPolling(lc, fn, opts...)`   | Construct a polling service.                             |
 | `WithCustomPollingInterval(d)`  | Interval between polls (default 5 s).                    |
