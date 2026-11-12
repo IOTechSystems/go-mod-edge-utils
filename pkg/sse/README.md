@@ -61,7 +61,7 @@ e.GET("/api/v1/devices/sse", devicesHandler)
 
 ```go
 // Each new subscriber gets the current state first, then the broadcasts,
-// minus those skip returns true for. Return an untyped nil for no first
+// minus those for which skip returns true. Return an untyped nil for no first
 // message, a nil skip to drop nothing; both fn and skip must return promptly.
 sse.Handler(sseManager,
     sse.WithPollingService(holder),
