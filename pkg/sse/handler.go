@@ -32,6 +32,8 @@ var errJWTExpired = errors.New("sse: JWT expired")
 //     the last subscriber leaves.
 //   - WithJWTDeadline: close each connection when the Bearer JWT in its
 //     Authorization header expires.
+//   - WithFirstMessage: write a subscriber's own first message before
+//     anything broadcast on the topic.
 func Handler(m *Manager, opts ...HandlerOption) echo.HandlerFunc {
 	config := &HandlerConfig{}
 	for _, opt := range opts {
@@ -72,7 +74,7 @@ func Handler(m *Manager, opts ...HandlerOption) echo.HandlerFunc {
 			b.startPolling()
 		}
 
-		return handleSSE(c, m.ctx, b, ch, m.heartbeatInterval)
+		return handleSSE(c, m.ctx, b, ch, m.heartbeatInterval, config.FirstMessage)
 	}
 }
 
@@ -87,13 +89,14 @@ func ConstructSSETopic(c echo.Context) string {
 	return c.Request().URL.Path + "?" + c.QueryString()
 }
 
-func handleSSE(c echo.Context, serviceCtx context.Context, b *broadcaster, ch subscriberCh, heartbeatInterval time.Duration) error {
+func handleSSE(c echo.Context, serviceCtx context.Context, b *broadcaster, ch subscriberCh, heartbeatInterval time.Duration,
+	firstMessage FirstMessageFunc) error {
 	if heartbeatInterval <= 0 {
 		b.lc.Debug("sse: heartbeat interval is not set or invalid, using default value: 30s")
 		heartbeatInterval = defaultHeartbeatInterval
 	}
 
-	if err := WriteSSEHeaders(c, heartbeatInterval, b.lc); err != nil {
+	if ok, err := startStream(c, b, heartbeatInterval, firstMessage); !ok {
 		return err
 	}
 
@@ -132,4 +135,26 @@ func handleSSE(c echo.Context, serviceCtx context.Context, b *broadcaster, ch su
 			return nil
 		}
 	}
+}
+
+// startStream writes the SSE headers and then the payload firstMessage returns,
+// if any. ok is false when the stream must end: err is the header failure to
+// return to the caller, or nil after a failed first message, which is logged
+// like any failed event write.
+func startStream(c echo.Context, b *broadcaster, writeDeadline time.Duration, firstMessage FirstMessageFunc) (ok bool, err error) {
+	if err := WriteSSEHeaders(c, writeDeadline, b.lc); err != nil {
+		return false, err
+	}
+	if firstMessage == nil {
+		return true, nil
+	}
+	payload := firstMessage(c.Request().Context(), b.pollingService)
+	if payload == nil {
+		return true, nil
+	}
+	if err := WriteSSEEvent(c, payload, writeDeadline, b.lc); err != nil {
+		b.lc.Errorf("sse: failed to write first message: %v", err)
+		return false, nil
+	}
+	return true, nil
 }

@@ -4,14 +4,28 @@
 
 package sse
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 // HandlerConfig holds the configuration for the SSE handler.
 type HandlerConfig struct {
 	PollingService PollingService
 	CustomTopic    string
 	JWTDeadline    bool
+	FirstMessage   FirstMessageFunc
 }
+
+// FirstMessageFunc returns a subscriber's own first message. service is the
+// polling service bound to the topic's broadcaster when it was created (nil
+// when it has none), not necessarily the one the current request passed.
+//
+// Only an untyped nil writes nothing: a nil pointer returned as any is not
+// nil and is written as "data: null", so return nil explicitly when there is
+// no payload. A payload that cannot be marshalled to JSON is logged and
+// skipped, as a broadcast payload is.
+type FirstMessageFunc func(ctx context.Context, service PollingService) any
 
 // HandlerOption is a function that modifies the HandlerConfig.
 type HandlerOption func(*HandlerConfig)
@@ -20,6 +34,21 @@ type HandlerOption func(*HandlerConfig)
 func WithPollingService(service PollingService) HandlerOption {
 	return func(config *HandlerConfig) {
 		config.PollingService = service
+	}
+}
+
+// WithFirstMessage writes the payload fn returns to each new subscriber before
+// anything broadcast on the topic, including payloads already in its queue. fn
+// runs after the subscriber is registered and, for the topic's first
+// subscriber, after polling has started.
+//
+// ctx is the request context: it ends when the client leaves or its JWT
+// deadline passes, but not on Manager.Shutdown. fn must return promptly and
+// honour ctx, as heartbeats, request cancellation and shutdown are handled
+// only after it returns.
+func WithFirstMessage(fn FirstMessageFunc) HandlerOption {
+	return func(config *HandlerConfig) {
+		config.FirstMessage = fn
 	}
 }
 
