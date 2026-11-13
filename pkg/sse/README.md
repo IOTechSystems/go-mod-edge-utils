@@ -60,23 +60,32 @@ e.GET("/api/v1/devices/sse", devicesHandler)
 ### Per-subscriber first message
 
 ```go
-// Each new subscriber gets the current state first, then the broadcasts.
-// service is the polling service bound to the topic, not necessarily the
-// one this request passed, and nil when the topic has none. Return an
-// untyped nil to write nothing (a nil pointer is written as "data: null");
-// return promptly, as heartbeats start only after fn returns.
+// Each new subscriber gets the current state first, then the broadcasts. It is
+// registered before fn runs, so a broadcast the snapshot already contains can
+// be waiting in its queue; skipDuplicate drops it. The library does not look
+// inside messages, so the caller decides what is such a duplicate, here by the
+// sequence number its messages carry. It is not a general filter: a dropped
+// message counts as sent, so an identical broadcast right after it is
+// suppressed by de-duplication. skipDuplicate is called for each message taken
+// from the subscriber's queue, in order, also when fn returns no first
+// message. Return an untyped nil for no first message, a nil skipDuplicate to
+// drop nothing; both fn and skipDuplicate must return promptly.
 sse.Handler(sseManager,
     sse.WithPollingService(holder),
-    sse.WithFirstMessage(func(ctx context.Context, service sse.PollingService) any {
+    sse.WithFirstMessage(func(ctx context.Context, service sse.PollingService) (any, func(any) bool) {
         h, ok := service.(*stateHolder)
         if !ok {
-            return nil
+            return nil, nil
         }
         snapshot := h.Snapshot() // *Snapshot
         if snapshot == nil {
-            return nil
+            return nil, nil
         }
-        return snapshot
+        skipDuplicate := func(msg any) bool {
+            m, ok := msg.(sequenced)
+            return ok && m.Seq() <= snapshot.Seq
+        }
+        return snapshot, skipDuplicate
     }),
 )
 ```
@@ -103,7 +112,7 @@ sseManager.Publish(sse.ConstructSSETopic(c), event)
 | `WithCustomTopic(topic)`        | Override the URL-derived topic.                          |
 | `WithPollingService(s)`         | Attach a polling service to drive events for the topic.  |
 | `WithJWTDeadline()`             | Close a connection when its header Bearer JWT expires.   |
-| `WithFirstMessage(fn)`          | Write a subscriber's own first message before broadcasts. |
+| `WithFirstMessage(fn)`          | Write a subscriber's own first message before broadcasts, and drop the broadcasts its predicate reports as duplicates. |
 | `ConstructSSETopic(c)`          | Build the default topic from a request URL.              |
 | `NewPolling(lc, fn, opts...)`   | Construct a polling service.                             |
 | `WithCustomPollingInterval(d)`  | Interval between polls (default 5 s).                    |

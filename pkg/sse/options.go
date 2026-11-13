@@ -17,15 +17,21 @@ type HandlerConfig struct {
 	FirstMessage   FirstMessageFunc
 }
 
-// FirstMessageFunc returns a subscriber's own first message. service is the
-// polling service bound to the topic's broadcaster when it was created (nil
-// when it has none), not necessarily the one the current request passed.
+// FirstMessageFunc returns a subscriber's first message and its skipDuplicate
+// predicate. service is the topic's polling service (nil when none), not
+// necessarily the one this request passed. Return an untyped nil for no first
+// message; a nil pointer is written as "data: null".
 //
-// Only an untyped nil writes nothing: a nil pointer returned as any is not
-// nil and is written as "data: null", so return nil explicitly when there is
-// no payload. A payload that cannot be marshalled to JSON is logged and
-// skipped, as a broadcast payload is.
-type FirstMessageFunc func(ctx context.Context, service PollingService) any
+// The subscriber is registered before fn runs, so a broadcast that first
+// already contains can be waiting in its queue. skipDuplicate drops such a
+// broadcast. The library does not look inside messages: deciding that one is
+// such a duplicate is the caller's job, typically by a sequence number its
+// messages carry. It is not a general filter: a dropped message counts as
+// sent, so an identical broadcast right after it is suppressed by
+// de-duplication. It is called for each message taken from the subscriber's
+// queue, in order, also when first is nil, and must return promptly; nil
+// drops none.
+type FirstMessageFunc func(ctx context.Context, service PollingService) (first any, skipDuplicate func(msg any) bool)
 
 // HandlerOption is a function that modifies the HandlerConfig.
 type HandlerOption func(*HandlerConfig)
@@ -38,9 +44,10 @@ func WithPollingService(service PollingService) HandlerOption {
 }
 
 // WithFirstMessage writes the payload fn returns to each new subscriber before
-// anything broadcast on the topic, including payloads already in its queue. fn
-// runs after the subscriber is registered and, for the topic's first
-// subscriber, after polling has started.
+// anything broadcast on the topic, including payloads already in its queue,
+// then drops the broadcasts its skipDuplicate predicate reports as duplicates
+// (see FirstMessageFunc). fn runs after the subscriber is registered and, for
+// the topic's first subscriber, after polling has started.
 //
 // ctx is the request context: it ends when the client leaves or its JWT
 // deadline passes, but not on Manager.Shutdown. fn must return promptly and
