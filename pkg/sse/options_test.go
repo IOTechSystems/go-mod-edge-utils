@@ -67,7 +67,7 @@ func TestWithFirstMessage(t *testing.T) {
 	config := &HandlerConfig{}
 	WithFirstMessage(func(_ context.Context, _ PollingService) (any, func(any) bool) { return "first", nil })(config)
 	require.NotNil(t, config.FirstMessage)
-	first, skip := config.FirstMessage(context.Background(), nil)
+	first, skipDuplicate := config.FirstMessage(context.Background(), nil)
 	assert.Equal(t, "first", first)
-	assert.Nil(t, skip)
+	assert.Nil(t, skipDuplicate)
 }

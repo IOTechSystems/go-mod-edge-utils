@@ -33,8 +33,8 @@ var errJWTExpired = errors.New("sse: JWT expired")
 //   - WithJWTDeadline: close each connection when the Bearer JWT in its
 //     Authorization header expires.
 //   - WithFirstMessage: write a subscriber's own first message before
-//     anything broadcast on the topic, and skip the broadcast messages its
-//     predicate covers.
+//     anything broadcast on the topic, and drop the broadcasts its
+//     skipDuplicate predicate reports as duplicates.
 func Handler(m *Manager, opts ...HandlerOption) echo.HandlerFunc {
 	config := &HandlerConfig{}
 	for _, opt := range opts {
@@ -97,7 +97,7 @@ func handleSSE(c echo.Context, serviceCtx context.Context, b *broadcaster, ch su
 		heartbeatInterval = defaultHeartbeatInterval
 	}
 
-	skip, ok, err := startStream(c, b, heartbeatInterval, firstMessage)
+	skipDuplicate, ok, err := startStream(c, b, heartbeatInterval, firstMessage)
 	if !ok {
 		return err
 	}
@@ -113,7 +113,7 @@ func handleSSE(c echo.Context, serviceCtx context.Context, b *broadcaster, ch su
 				b.lc.Debug("sse: subscriber channel closed")
 				return nil
 			}
-			if skip != nil && skip(msg) {
+			if skipDuplicate != nil && skipDuplicate(msg) {
 				continue
 			}
 			if err := WriteSSEEvent(c, msg, heartbeatInterval, b.lc); err != nil {
@@ -143,24 +143,24 @@ func handleSSE(c echo.Context, serviceCtx context.Context, b *broadcaster, ch su
 }
 
 // startStream writes the SSE headers and then the payload firstMessage returns,
-// if any, and returns its skip predicate. ok is false when the stream must
+// if any, and returns its skipDuplicate predicate. ok is false when the stream must
 // end: err is the header failure to return to the caller, or nil after a
 // failed first message, which is logged like any failed event write.
 func startStream(c echo.Context, b *broadcaster, writeDeadline time.Duration,
-	firstMessage FirstMessageFunc) (skip func(msg any) bool, ok bool, err error) {
+	firstMessage FirstMessageFunc) (skipDuplicate func(msg any) bool, ok bool, err error) {
 	if err := WriteSSEHeaders(c, writeDeadline, b.lc); err != nil {
 		return nil, false, err
 	}
 	if firstMessage == nil {
 		return nil, true, nil
 	}
-	payload, skip := firstMessage(c.Request().Context(), b.pollingService)
+	payload, skipDuplicate := firstMessage(c.Request().Context(), b.pollingService)
 	if payload == nil {
-		return skip, true, nil
+		return skipDuplicate, true, nil
 	}
 	if err := WriteSSEEvent(c, payload, writeDeadline, b.lc); err != nil {
 		b.lc.Errorf("sse: failed to write first message: %v", err)
 		return nil, false, nil
 	}
-	return skip, true, nil
+	return skipDuplicate, true, nil
 }

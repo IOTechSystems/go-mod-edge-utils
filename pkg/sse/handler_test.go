@@ -345,11 +345,11 @@ func TestHandler_WithFirstMessage_BoundPollingService(t *testing.T) {
 	assert.Equal(t, int32(0), own.starts.Load(), "a later subscriber's own polling service must not start")
 }
 
-// skipValues returns a predicate covering values and the messages it was called with.
-func skipValues(values ...string) (func(msg any) bool, func() []any) {
+// skipDuplicates returns a skipDuplicate predicate covering values and the messages it was called with.
+func skipDuplicates(values ...string) (func(msg any) bool, func() []any) {
 	var mu sync.Mutex
 	var seen []any
-	skip := func(msg any) bool {
+	skipDuplicate := func(msg any) bool {
 		mu.Lock()
 		seen = append(seen, msg)
 		mu.Unlock()
@@ -360,7 +360,7 @@ func skipValues(values ...string) (func(msg any) bool, func() []any) {
 		}
 		return false
 	}
-	return skip, func() []any {
+	return skipDuplicate, func() []any {
 		mu.Lock()
 		defer mu.Unlock()
 		return append([]any(nil), seen...)
@@ -372,11 +372,11 @@ func TestHandler_WithFirstMessage_SkipsQueuedPayload(t *testing.T) {
 	m := newTestManager(t)
 	defer m.Shutdown()
 
-	skip, seen := skipValues("old")
+	skipDuplicate, seen := skipDuplicates("old")
 	first := func(_ context.Context, _ PollingService) (any, func(any) bool) {
 		m.Publish(handlerTestTopic, "old")
 		m.Publish(handlerTestTopic, "new")
-		return "first", skip
+		return "first", skipDuplicate
 	}
 	rec, closeStream := openStream(t, Handler(m, WithFirstMessage(first)))
 	waitForBody(t, rec, `data: "new"`)
@@ -391,9 +391,9 @@ func TestHandler_WithFirstMessage_SkipsLaterPayload(t *testing.T) {
 	m := newTestManager(t)
 	defer m.Shutdown()
 
-	skip, seen := skipValues("skipped")
+	skipDuplicate, seen := skipDuplicates("skipped")
 	first := func(_ context.Context, _ PollingService) (any, func(any) bool) {
-		return "first", skip
+		return "first", skipDuplicate
 	}
 	rec, closeStream := openStream(t, Handler(m, WithFirstMessage(first)))
 	waitForBody(t, rec, `data: "first"`)
@@ -406,15 +406,15 @@ func TestHandler_WithFirstMessage_SkipsLaterPayload(t *testing.T) {
 	assert.Equal(t, []any{"skipped", "kept"}, seen())
 }
 
-// TestHandler_WithFirstMessage_SkipWithNilFirst: the predicate applies without a first message.
-func TestHandler_WithFirstMessage_SkipWithNilFirst(t *testing.T) {
+// TestHandler_WithFirstMessage_SkipDuplicateWithNilFirst: the predicate applies without a first message.
+func TestHandler_WithFirstMessage_SkipDuplicateWithNilFirst(t *testing.T) {
 	m := newTestManager(t)
 	defer m.Shutdown()
 
-	skip, seen := skipValues("skipped")
+	skipDuplicate, seen := skipDuplicates("skipped")
 	first := func(_ context.Context, _ PollingService) (any, func(any) bool) {
 		m.Publish(handlerTestTopic, "skipped")
-		return nil, skip
+		return nil, skipDuplicate
 	}
 	rec, closeStream := openStream(t, Handler(m, WithFirstMessage(first)))
 	require.Eventually(t, func() bool { return len(seen()) == 1 }, time.Second, 5*time.Millisecond)
@@ -426,8 +426,8 @@ func TestHandler_WithFirstMessage_SkipWithNilFirst(t *testing.T) {
 	assert.Equal(t, []any{"skipped", "kept"}, seen())
 }
 
-// TestHandler_WithFirstMessage_NilSkipWritesAll: a nil predicate drops nothing.
-func TestHandler_WithFirstMessage_NilSkipWritesAll(t *testing.T) {
+// TestHandler_WithFirstMessage_NilSkipDuplicateWritesAll: a nil predicate drops nothing.
+func TestHandler_WithFirstMessage_NilSkipDuplicateWritesAll(t *testing.T) {
 	m := newTestManager(t)
 	defer m.Shutdown()
 
@@ -444,16 +444,16 @@ func TestHandler_WithFirstMessage_NilSkipWritesAll(t *testing.T) {
 	assert.Equal(t, "data: \"first\"\n\ndata: \"queued\"\n\ndata: \"later\"\n\n", rec.body())
 }
 
-// TestHandler_WithFirstMessage_SkipLeavesOtherSubscribers: a drop affects only that subscriber, not other subscribers or de-duplication.
-func TestHandler_WithFirstMessage_SkipLeavesOtherSubscribers(t *testing.T) {
+// TestHandler_WithFirstMessage_SkipDuplicateLeavesOtherSubscribers: a drop affects only that subscriber, not other subscribers or de-duplication.
+func TestHandler_WithFirstMessage_SkipDuplicateLeavesOtherSubscribers(t *testing.T) {
 	m := newTestManager(t)
 	defer m.Shutdown()
 
 	other, closeOther := openStream(t, Handler(m))
 	waitForSubscribers(t, m, handlerTestTopic, 1)
 
-	skip, seen := skipValues("dup")
-	first := func(_ context.Context, _ PollingService) (any, func(any) bool) { return nil, skip }
+	skipDuplicate, seen := skipDuplicates("dup")
+	first := func(_ context.Context, _ PollingService) (any, func(any) bool) { return nil, skipDuplicate }
 	rec, closeStream := openStream(t, Handler(m, WithFirstMessage(first)))
 	waitForSubscribers(t, m, handlerTestTopic, 2)
 
