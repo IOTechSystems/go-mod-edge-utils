@@ -159,7 +159,8 @@ against — visibility is decided against the whole universe.
 
 1. Call `next` to get the real catalogue.
 2. Collect every listed tool's universe into one deduplicated batch.
-3. One POST to proxy-auth `/api/v3/oauth/auth-routes` — a single introspection
+3. One POST to proxy-auth `/api/v3/oauth/auth-routes` (`/api/{apiVersion}/...`
+   with `NewAuthRoutesClientWithApiVersion`, e.g. `v1` for connect-ui) — a single introspection
    plus one Casbin `BatchEnforce`. Always answers `200` with a per-route
    `authResult` array; never `204`/`403`.
 4. Keep a tool when **any** of its routes is allowed.
@@ -217,7 +218,8 @@ without leaking proxy-auth internals over the MCP protocol.
 `AuthClient.Auth`/`AuthRoutes` hardcode the first-party `/api/v3/auth` and
 `/api/v3/auth-routes` paths, which reject OAuth tokens. Both clients — this
 package's `NewAuthRoutesClient` and `pkg/mcp/authz`'s — are hand-rolled against
-the `/api/v3/oauth/*` equivalents, and take an `AuthenticationInjector` from the
+the `/api/v3/oauth/*` equivalents (or another authorization server's API version via
+`NewAuthRoutesClientWithApiVersion` / `ProxyAuth.ApiVersion`), and take an `AuthenticationInjector` from the
 installing service; that injector must stamp nothing (central-mcp's
 `passthroughInjector`) so the service's own JWT never overwrites the forwarded
 end-user bearer.

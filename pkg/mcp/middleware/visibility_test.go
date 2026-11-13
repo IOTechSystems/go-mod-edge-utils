@@ -279,7 +279,7 @@ func TestVisibility_OutageFailsClosedAndLeaksNoList(t *testing.T) {
 	logged := lc.out.String()
 	assert.Contains(t, logged, "ERROR", "the sanitised client error drops the cause, so the outage must be logged")
 	assert.Contains(t, logged, "proxy-auth down", "the log is the only trace of the real cause")
-	assert.Contains(t, logged, OAuthAuthRoutesPath, "the log must name the endpoint that failed")
+	assert.Contains(t, logged, "auth-routes", "the log must name the endpoint that failed")
 }
 
 // A failing next must not hand back the list it produced. The filtering below it
