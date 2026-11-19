@@ -17,14 +17,19 @@ import (
 )
 
 // OAuthRouteAuthPath is proxy-auth's OAuth route-authz endpoint (introspection +
-// Casbin enforcement). Distinct from first-party /api/v3/auth, which rejects
-// OAuth tokens.
-const OAuthRouteAuthPath = "/api/v3/oauth/auth"
+// Casbin enforcement), kept for existing callers; ProxyAuth composes its path from its
+// ApiVersion. Distinct from first-party /api/v3/auth, which rejects OAuth tokens.
+const OAuthRouteAuthPath = "/api/" + mcpCommon.DefaultApiVersion + "/oauth/" + routeAuthEndpoint
+
+const routeAuthEndpoint = "auth"
 
 // ProxyAuth asks security-proxy-auth whether one caller may take one route.
 type ProxyAuth struct {
 	// BaseURL is proxy-auth's base URL.
 	BaseURL string
+	// ApiVersion is the authorization server's API version; empty means
+	// mcpCommon.DefaultApiVersion, which is proxy-auth's.
+	ApiVersion string
 	// Injector decorates the authorization request itself. It must NOT add the
 	// MCP service's own JWT: proxy-auth reads the end user's bearer from the
 	// Authorization header, and a second Authorization header would be sent.
@@ -32,6 +37,12 @@ type ProxyAuth struct {
 	// Resource is forwarded as X-Forwarded-Resource so proxy-auth confines the
 	// token to its bound audience.
 	Resource string
+}
+
+// NewProxyAuthWithApiVersion is a ProxyAuth for an authorization server that serves
+// its OAuth endpoints under apiVersion; empty means mcpCommon.DefaultApiVersion.
+func NewProxyAuthWithApiVersion(baseURL, apiVersion, resource string, injector restinterfaces.AuthenticationInjector) ProxyAuth {
+	return ProxyAuth{BaseURL: baseURL, ApiVersion: apiVersion, Injector: injector, Resource: resource}
 }
 
 // Allow reports whether the caller may take route with method. Only an explicit
@@ -46,7 +57,7 @@ func (p ProxyAuth) Allow(ctx context.Context, bearer, route, method string) (boo
 		mcpCommon.ForwardedResourceHeader: p.Resource,
 	}
 
-	req, err := rest.CreateRequestWithRawDataAndHeaders(ctx, http.MethodPost, p.BaseURL, OAuthRouteAuthPath, nil, nil, headers)
+	req, err := rest.CreateRequestWithRawDataAndHeaders(ctx, http.MethodPost, p.BaseURL, mcpCommon.OAuthRoute(p.ApiVersion, routeAuthEndpoint), nil, nil, headers)
 	if err != nil {
 		return false, err
 	}

@@ -29,12 +29,11 @@ import (
 // which is unexported in github.com/modelcontextprotocol/go-sdk/mcp.
 const methodToolsList = "tools/list"
 
-// OAuthAuthRoutesPath is proxy-auth's batch OAuth route-authz endpoint.
-const OAuthAuthRoutesPath = "/api/v3/oauth/auth-routes"
+// OAuthAuthRoutesPath is proxy-auth's batch OAuth route-authz endpoint, kept for existing
+// callers; the client composes its path from its API version.
+const OAuthAuthRoutesPath = "/api/" + mcpCommon.DefaultApiVersion + "/oauth/" + authRoutesEndpoint
 
-// proxyAuthApiVersion is the apiVersion proxy-auth's DTO validation requires on
-// the wire.
-const proxyAuthApiVersion = "v3"
+const authRoutesEndpoint = "auth-routes"
 
 // cacheScopePrivate restricts a result to the client that asked for it. MCP spec
 // 2026-07-28 makes every list result carry a cache declaration and the SDK
@@ -79,24 +78,37 @@ type RouteAuthorizer interface {
 	AuthRoutes(ctx context.Context, headers map[string]string, routes []tool.Route) ([]AuthRouteResult, error)
 }
 
-// oauthAuthRoutesClient POSTs to /api/v3/oauth/auth-routes; hand-rolled for the
-// same reason as oauthAuthClient (see README.md).
+// oauthRoutesClient POSTs to the authorization server's auth-routes endpoint;
+// hand-rolled for the same reason as oauthAuthClient (see README.md).
 type oauthRoutesClient struct {
 	baseURL  string
 	injector restinterfaces.AuthenticationInjector
+	// apiVersion is the authorization server's API version: the path's and the
+	// apiVersion every request DTO carries, which proxy-auth's validation requires.
+	apiVersion string
 }
 
 // NewAuthRoutesClient builds the proxy-auth batch route-authz client Visibility
 // uses.
 func NewAuthRoutesClient(baseURL string, injector restinterfaces.AuthenticationInjector) RouteAuthorizer {
-	return oauthRoutesClient{baseURL: baseURL, injector: injector}
+	return NewAuthRoutesClientWithApiVersion(baseURL, "", injector)
+}
+
+// NewAuthRoutesClientWithApiVersion is NewAuthRoutesClient for an authorization server
+// that serves its OAuth endpoints under apiVersion; empty means
+// mcpCommon.DefaultApiVersion.
+func NewAuthRoutesClientWithApiVersion(baseURL, apiVersion string, injector restinterfaces.AuthenticationInjector) RouteAuthorizer {
+	if apiVersion == "" {
+		apiVersion = mcpCommon.DefaultApiVersion
+	}
+	return oauthRoutesClient{baseURL: baseURL, injector: injector, apiVersion: apiVersion}
 }
 
 func (c oauthRoutesClient) AuthRoutes(ctx context.Context, headers map[string]string, routes []tool.Route) ([]AuthRouteResult, error) {
 	reqs := make([]authRouteRequest, 0, len(routes))
 	for _, r := range routes {
 		req := authRouteRequest{
-			ApiVersion: proxyAuthApiVersion,
+			ApiVersion: c.apiVersion,
 			RequestId:  uuid.NewString(),
 			AuthRoute:  AuthRoute{Path: r.URI, Method: r.Method},
 		}
@@ -110,8 +122,10 @@ func (c oauthRoutesClient) AuthRoutes(ctx context.Context, headers map[string]st
 	defer cancel()
 
 	var res authRouteResponse
-	if err := rest.PostRequestWithRawDataAndHeaders(ctx, &res, c.baseURL, OAuthAuthRoutesPath, nil, reqs, c.injector, headers); err != nil {
-		return nil, err
+	path := mcpCommon.OAuthRoute(c.apiVersion, authRoutesEndpoint)
+	if err := rest.PostRequestWithRawDataAndHeaders(ctx, &res, c.baseURL, path, nil, reqs, c.injector, headers); err != nil {
+		// The status error omits the URL, which a 404 from a wrong apiVersion needs.
+		return nil, errors.NewBaseError(errors.Kind(err), "POST "+path, err)
 	}
 	return res.AuthResponses, nil
 }
@@ -204,7 +218,7 @@ func Visibility(lc log.Logger, client RouteAuthorizer, toolRoutes func() map[str
 					}
 					// Outage / 5xx / timeout — not a decision, so no list. The
 					// returned message is generic, so this log is the only trace.
-					lc.Errorf("tools/list authorization failed against %s: %v", OAuthAuthRoutesPath, authErr)
+					lc.Errorf("tools/list authorization failed against the authorization server's %s endpoint: %v", authRoutesEndpoint, authErr)
 					return nil, errors.NewBaseError(errors.KindServerError,
 						"authorization service unavailable", nil)
 				}

@@ -569,3 +569,33 @@ func TestTransport_TheAuthorizationBoundIsTighterThanTheCallCeiling(t *testing.T
 		"with the caller holding the full ceiling, the authorization call must still "+
 			"be cut earlier — otherwise proxy-auth can spend the upstream's budget")
 }
+
+func TestProxyAuth_ApiVersion(t *testing.T) {
+	for _, tc := range []struct{ name, version, want string }{
+		{"empty version is proxy-auth's", "", "/api/v3/oauth/auth"},
+		{"connect-ui's", "v1", "/api/v1/oauth/auth"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotPath, gotResource string
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				gotPath = r.URL.Path
+				gotResource = r.Header.Get(mcpCommon.ForwardedResourceHeader)
+				w.WriteHeader(http.StatusNoContent)
+			}))
+			defer srv.Close()
+
+			p := NewProxyAuthWithApiVersion(srv.URL, tc.version, "http://rs/mcp", nil)
+			allow, err := p.Allow(context.Background(), "Bearer abc", "device", http.MethodGet)
+
+			require.NoError(t, err)
+			assert.True(t, allow)
+			assert.Equal(t, tc.want, gotPath)
+			assert.Equal(t, "http://rs/mcp", gotResource)
+		})
+	}
+}
+
+// The constant spells out mcpCommon.OAuthRoute's path, as a constant cannot call it.
+func TestOAuthRouteAuthPath(t *testing.T) {
+	assert.Equal(t, mcpCommon.OAuthRoute("", routeAuthEndpoint), OAuthRouteAuthPath)
+}

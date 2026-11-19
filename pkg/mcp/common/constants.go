@@ -29,3 +29,17 @@ const ForwardedResourceHeader = "X-Forwarded-Resource"
 // AuthReasonInsufficientScope is the stable RFC 6750 reason token put in
 // authorization-refusal messages so clients can match on it.
 const AuthReasonInsufficientScope = "insufficient_scope"
+
+// DefaultApiVersion is security-proxy-auth's API version, which the clients of an authorization server use when they
+// are given none.
+const DefaultApiVersion = "v3"
+
+// OAuthRoute returns the path of the authorization server's OAuth endpoint (e.g. "validate") under apiVersion; an
+// empty apiVersion means DefaultApiVersion. An authorization server other than proxy-auth, such as connect-ui, serves
+// the same endpoints under its own API version.
+func OAuthRoute(apiVersion, endpoint string) string {
+	if apiVersion == "" {
+		apiVersion = DefaultApiVersion
+	}
+	return "/api/" + apiVersion + "/oauth/" + endpoint
+}

@@ -46,3 +46,37 @@ func TestHTTPValidator_503IsServiceUnavailable(t *testing.T) {
 	err := v.Validate(context.Background(), "Bearer x", "http://localhost:59894/mcp")
 	assert.Equal(t, errors.KindServiceUnavailable, errors.Kind(err))
 }
+
+func TestHTTPValidator_ApiVersion(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		validator func(baseURL string) TokenValidator
+		want      string
+	}{
+		{"NewHTTPValidator is proxy-auth's", func(u string) TokenValidator { return NewHTTPValidator(u, nil) },
+			"/api/v3/oauth/validate"},
+		{"empty version is proxy-auth's", func(u string) TokenValidator { return NewHTTPValidatorWithApiVersion(u, "", nil) },
+			"/api/v3/oauth/validate"},
+		{"connect-ui's", func(u string) TokenValidator { return NewHTTPValidatorWithApiVersion(u, "v1", nil) },
+			"/api/v1/oauth/validate"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotPath string
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				gotPath = r.URL.Path
+				w.WriteHeader(http.StatusNoContent)
+			}))
+			t.Cleanup(srv.Close)
+
+			err := tc.validator(srv.URL).Validate(context.Background(), "Bearer good", "http://rs/mcp")
+
+			assert.NoError(t, err)
+			assert.Equal(t, tc.want, gotPath)
+		})
+	}
+}
+
+// The constant spells out mcpCommon.OAuthRoute's path, as a constant cannot call it.
+func TestValidateRoute(t *testing.T) {
+	assert.Equal(t, mcpCommon.OAuthRoute("", validateEndpoint), ValidateRoute)
+}

@@ -18,9 +18,12 @@ import (
 )
 
 // ValidateRoute is proxy-auth's OAuth token-introspection endpoint (authn + aud, no
-// route authorization). It lives under the isolated /api/v3/oauth/* namespace; the
+// route authorization), kept for existing callers; the validator composes its path from
+// its API version. It lives under the isolated /api/v3/oauth/* namespace; the
 // first-party /api/v3/auth gateway path rejects OAuth-class tokens.
-const ValidateRoute = "/api/v3/oauth/validate"
+const ValidateRoute = "/api/" + mcpCommon.DefaultApiVersion + "/oauth/" + validateEndpoint
+
+const validateEndpoint = "validate"
 
 // validationTimeout bounds the proxy-auth introspection call. The MCP server
 // omits the request-timeout middleware and the rest package's http.Client has no
@@ -39,12 +42,19 @@ type TokenValidator interface {
 
 type httpValidator struct {
 	baseURL  string
+	route    string
 	injector restinterfaces.AuthenticationInjector
 }
 
 // NewHTTPValidator builds a TokenValidator that POSTs to proxy-auth's ValidateRoute.
 func NewHTTPValidator(baseURL string, injector restinterfaces.AuthenticationInjector) TokenValidator {
-	return &httpValidator{baseURL: baseURL, injector: injector}
+	return NewHTTPValidatorWithApiVersion(baseURL, "", injector)
+}
+
+// NewHTTPValidatorWithApiVersion is NewHTTPValidator for an authorization server that
+// serves its OAuth endpoints under apiVersion; empty means mcpCommon.DefaultApiVersion.
+func NewHTTPValidatorWithApiVersion(baseURL, apiVersion string, injector restinterfaces.AuthenticationInjector) TokenValidator {
+	return &httpValidator{baseURL: baseURL, route: mcpCommon.OAuthRoute(apiVersion, validateEndpoint), injector: injector}
 }
 
 func (v *httpValidator) Validate(ctx context.Context, authzHeader, resource string) error {
@@ -55,7 +65,7 @@ func (v *httpValidator) Validate(ctx context.Context, authzHeader, resource stri
 		mcpCommon.AuthorizationHeader:     authzHeader,
 		mcpCommon.ForwardedResourceHeader: resource,
 	}
-	req, err := rest.CreateRequestWithRawDataAndHeaders(ctx, http.MethodPost, v.baseURL, ValidateRoute, nil, nil, headers)
+	req, err := rest.CreateRequestWithRawDataAndHeaders(ctx, http.MethodPost, v.baseURL, v.route, nil, nil, headers)
 	if err != nil {
 		return err
 	}
